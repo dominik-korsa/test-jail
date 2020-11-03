@@ -22,7 +22,7 @@ interface RunArgs {
 }
 
 yargs
-    .scriptName('awteru')
+    .scriptName('awesome-test-runner')
     .usage('$0 <cmd> [args]')
     .command<RunArgs>('run <code>', '', (commandYargs) => {
         commandYargs.positional('code', {
