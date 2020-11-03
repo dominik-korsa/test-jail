@@ -8,6 +8,9 @@ import chalk from "chalk";
 import replaceExt from 'replace-ext';
 import Table from 'cli-table3';
 import glob from 'glob';
+import util from "util";
+
+const globPromise = util.promisify(glob);
 
 interface RunArgs {
     url: string;
@@ -15,6 +18,7 @@ interface RunArgs {
     input: string;
     output: string;
     time: number;
+    pattern: string;
 }
 
 yargs
@@ -42,20 +46,16 @@ yargs
             default: 30,
             describe: 'Time limit in seconds'
         })
+        commandYargs.option('pattern', {
+            type: 'string',
+            default: '**.in',
+            describe: 'Glob pattern to select files in input directory. Matches all .in files by default. Does not apply if input is a single file.',
+        })
     }, runHandler)
     .demandCommand()
     .help()
     .strict()
     .argv;
-
-async function* listFiles(dir: string): AsyncGenerator<string> {
-    const dirents = await fs.promises.readdir(dir, { withFileTypes: true });
-    for (const dirent of dirents) {
-        const res = path.resolve(dir, dirent.name);
-        if (dirent.isDirectory()) yield* listFiles(res);
-        else yield res;
-    }
-}
 
 async function runHandler(argv: yargs.Arguments<RunArgs>) {
     const code = path.resolve(process.cwd(), argv.code);
@@ -104,31 +104,38 @@ async function runHandler(argv: yargs.Arguments<RunArgs>) {
     startingSpinner.succeed();
 
     const results: (Result & {
-        relativePath: string;
+        file: string;
     })[] = [];
     const runSpinner = ora('Testing').start();
     if (inputStats.isDirectory()) {
-        for await (const file of listFiles(input)) {
-            const relativePath = path.relative(input, file);
-            runSpinner.text = `Testing ${chalk.cyan(relativePath)}`;
-            const result = await runner.testInputFile(file, argv.time);
+        const files = await globPromise(argv.pattern, {cwd: input});
+        for (const file of files) {
+            runSpinner.text = `Testing ${chalk.cyan(file)}`;
+            const result = await runner.testInputFile(path.resolve(input, file), argv.time);
             if (result.type === 'success') {
                 await fs.promises.writeFile(
-                    path.resolve(output, replaceExt(relativePath, '.out')),
+                    path.resolve(output, replaceExt(file, '.out')),
                     result.output,
                     'utf8'
                 );
             }
             results.push({
                 ...result,
-                relativePath,
+                file,
             });
         }
     } else {
         const result = await runner.testInputFile(input, argv.time);
+        if (result.type === 'success') {
+            await fs.promises.writeFile(
+                output,
+                result.output,
+                'utf8'
+            );
+        }
         results.push({
             ...result,
-            relativePath: path.normalize(argv.input),
+            file: path.basename(argv.input),
         });
     }
     runSpinner.succeed('Testing');
@@ -153,21 +160,21 @@ async function runHandler(argv: yargs.Arguments<RunArgs>) {
                 const colors = [chalk.gray, chalk.white, chalk.yellow, chalk.red];
                 const color = colors[Math.floor(timeRatio * colors.length)];
                 return [
-                    result.relativePath,
+                    result.file,
                     chalk.green('✔ Success'),
                     color(`${result.time.toFixed(3)} s`),
                     '',
                 ];
             } if (result.type === 'runtime-error') {
                 return [
-                    result.relativePath,
+                    result.file,
                     chalk.red('✖ Runtime error'),
                     '',
                     result.message,
                 ];
             }
             return [
-                result.relativePath,
+                result.file,
                 chalk.yellow('⚠ Time limit exceeded'),
                 '',
                 '',
