@@ -14,6 +14,7 @@
     "prepare": "npm run build"
   },
   "author": "Dominik Korsa <dominik.korsa@gmail.com>",
+  "repository": "https://github.com/dominik-korsa/awesome-test-runner",
   "license": "MIT",
   "dependencies": {
     "@types/glob": "^7.1.3",
