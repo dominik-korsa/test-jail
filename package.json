@@ -1,6 +1,6 @@
 {
   "name": "awesome-test-runner",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Safely test console programs in Docker containers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,8 @@
     "build": "tsc",
     "build:watch": "tsc -w",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "release": "release-it"
   },
   "author": "Dominik Korsa <dominik.korsa@gmail.com>",
   "repository": "https://github.com/dominik-korsa/awesome-test-runner",
@@ -27,5 +28,8 @@
     "ora": "^5.1.0",
     "replace-ext": "^2.0.0",
     "yargs": "^16.1.0"
+  },
+  "devDependencies": {
+    "release-it": "^14.2.1"
   }
 }
