@@ -9,6 +9,7 @@
     "sourceMap": true,
     "moduleResolution": "node",
     "outDir": "dist",
+    "declaration": true,
     "lib": [
       "es2015"
     ],
