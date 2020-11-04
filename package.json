@@ -12,7 +12,7 @@
     "build:watch": "tsc -w",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "npm run build",
-    "release": "release-it",
+    "release": "release-it --only-version",
     "lint": "eslint src -c .eslintrc.json",
     "lint:fix": "eslint src -c .eslintrc.json --fix"
   },
