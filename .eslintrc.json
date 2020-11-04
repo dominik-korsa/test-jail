@@ -14,6 +14,11 @@
     "sourceType": "module",
     "project": "./tsconfig.json"
   },
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    "tests"
+  ],
   "plugins": [
     "@typescript-eslint"
   ],
@@ -26,6 +31,14 @@
         "no-console": [
           "off"
         ]
+      }
+    },
+    {
+      "files": [
+        "tests/**"
+      ],
+      "rules": {
+        "func-names": ["off"]
       }
     }
   ],

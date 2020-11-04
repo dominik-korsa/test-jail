@@ -14,7 +14,8 @@
       "es2015"
     ],
     "types": [
-      "node"
+      "node",
+      "mocha"
     ]
   }
 }

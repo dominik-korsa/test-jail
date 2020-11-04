@@ -26,7 +26,7 @@ export enum Language {
   Cpp,
 }
 
-class Runner {
+export class Runner {
   private readonly containerId: string;
 
   private readonly language: Language;
