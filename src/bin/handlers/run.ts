@@ -8,7 +8,7 @@ import Table from 'cli-table3';
 import util from 'util';
 import glob from 'glob';
 import sequential from 'promise-sequential';
-import { createRunner, Result } from '../../index';
+import { Runner, Result } from '../../index';
 
 const globPromise = util.promisify(glob);
 
@@ -64,86 +64,93 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   }
 
   const startingSpinner = ora('Starting docker container').start();
-  const runner = await createRunner(code);
-  startingSpinner.succeed();
+  const runner = new Runner();
+  await runner.start();
+  try {
+    await runner.sendCode(code);
+    startingSpinner.succeed();
 
-  let results: (Result & {
-    file: string;
-  })[];
-  const runSpinner = ora('Testing').start();
-  if (inputStats.isDirectory()) {
-    const files = await globPromise(argv.pattern, { cwd: input });
-    results = await sequential(files.map((file) => async () => {
-      runSpinner.text = `Testing ${chalk.cyan(file)}`;
-      const result = await runner.testInputFile(path.resolve(input, file), argv.time);
+    let results: (Result & {
+      file: string;
+    })[];
+    const runSpinner = ora('Testing').start();
+    if (inputStats.isDirectory()) {
+      const files = await globPromise(argv.pattern, { cwd: input });
+      results = await sequential(files.map((file) => async () => {
+        runSpinner.text = `Testing ${chalk.cyan(file)}`;
+        const result = await runner.testInputFile(path.resolve(input, file), argv.time);
+        if (result.type === 'success') {
+          await fs.promises.writeFile(
+            path.resolve(output, replaceExt(file, '.out')),
+            result.output,
+            'utf8',
+          );
+        }
+        return {
+          ...result,
+          file,
+        };
+      }));
+    } else {
+      const result = await runner.testInputFile(input, argv.time);
       if (result.type === 'success') {
         await fs.promises.writeFile(
-          path.resolve(output, replaceExt(file, '.out')),
+          output,
           result.output,
           'utf8',
         );
       }
-      return {
+      results = [{
         ...result,
-        file,
-      };
-    }));
-  } else {
-    const result = await runner.testInputFile(input, argv.time);
-    if (result.type === 'success') {
-      await fs.promises.writeFile(
-        output,
-        result.output,
-        'utf8',
-      );
+        file: path.basename(argv.input),
+      }];
     }
-    results = [{
-      ...result,
-      file: path.basename(argv.input),
-    }];
+    runSpinner.succeed('Testing');
+    const stopSpinner = ora('Killing docker container').start();
+    await runner.kill();
+    stopSpinner.succeed();
+    const resultsTable = new Table({
+      head: [
+        'File',
+        'Status',
+        'Execution time',
+        'Error message',
+      ],
+      style: {
+        head: ['cyan'],
+      },
+    });
+    resultsTable.push(
+      ...results.map((result) => {
+        if (result.type === 'success') {
+          const timeRatio = Math.min(result.time / argv.time, 0.999);
+          const colors = [chalk.gray, chalk.white, chalk.yellow, chalk.red];
+          const color = colors[Math.floor(timeRatio * colors.length)];
+          return [
+            result.file,
+            chalk.green('✔ Success'),
+            color(`${result.time.toFixed(3)} s`),
+            '',
+          ];
+        } if (result.type === 'runtime-error') {
+          return [
+            result.file,
+            chalk.red('✖ Runtime error'),
+            '',
+            result.message,
+          ];
+        }
+        return [
+          result.file,
+          chalk.yellow('⚠ Time limit exceeded'),
+          '',
+          '',
+        ];
+      }),
+    );
+    console.log(resultsTable.toString());
+  } catch (error) {
+    await runner.kill();
+    throw error;
   }
-  runSpinner.succeed('Testing');
-  const stopSpinner = ora('Killing docker container').start();
-  await runner.kill();
-  stopSpinner.succeed();
-  const resultsTable = new Table({
-    head: [
-      'File',
-      'Status',
-      'Execution time',
-      'Error message',
-    ],
-    style: {
-      head: ['cyan'],
-    },
-  });
-  resultsTable.push(
-    ...results.map((result) => {
-      if (result.type === 'success') {
-        const timeRatio = Math.min(result.time / argv.time, 0.999);
-        const colors = [chalk.gray, chalk.white, chalk.yellow, chalk.red];
-        const color = colors[Math.floor(timeRatio * colors.length)];
-        return [
-          result.file,
-          chalk.green('✔ Success'),
-          color(`${result.time.toFixed(3)} s`),
-          '',
-        ];
-      } if (result.type === 'runtime-error') {
-        return [
-          result.file,
-          chalk.red('✖ Runtime error'),
-          '',
-          result.message,
-        ];
-      }
-      return [
-        result.file,
-        chalk.yellow('⚠ Time limit exceeded'),
-        '',
-        '',
-      ];
-    }),
-  );
-  console.log(resultsTable.toString());
 }

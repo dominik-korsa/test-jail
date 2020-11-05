@@ -27,20 +27,41 @@ export enum Language {
 }
 
 export class Runner {
-  private readonly containerId: string;
+  private containerId?: string;
 
-  private readonly language: Language;
+  private language?: Language;
 
-  constructor(containerId: string, language: Language) {
-    this.containerId = containerId;
-    this.language = language;
+  public async start(): Promise<void> {
+    if (this.containerId !== undefined) return;
+    this.containerId = (await execPromise('docker run -d -i --rm dominikkorsa/runner:1.0.0')).stdout.trim();
   }
 
   public async kill(): Promise<void> {
+    if (this.containerId === undefined) return;
     await execPromise(`docker kill ${this.containerId}`);
+    this.containerId = undefined;
+    this.language = undefined;
+  }
+
+  public async sendCode(file: string): Promise<void> {
+    if (this.containerId === undefined) throw new Error('Container not started');
+
+    const ext = path.extname(file);
+    if (ext === '.cpp') this.language = Language.Cpp;
+    else if (ext === '.py') this.language = Language.Python;
+    else throw new Error(`Unknown extension ${ext}`);
+
+    if (this.language === Language.Cpp) {
+      await execPromise(`docker cp ${path.resolve(file)} ${this.containerId}:/tmp/code.cpp`);
+      await execPromise(`docker exec ${this.containerId} g++ /tmp/code.cpp -o /tmp/code`);
+    } else {
+      await execPromise(`docker cp ${path.resolve(file)} ${this.containerId}:/tmp/code.py`);
+    }
   }
 
   public async testInputFile(inputFile: string, timeout: number): Promise<Result> {
+    if (this.containerId === undefined) throw new Error('Container not started');
+    if (this.language === undefined) throw new Error('Code not sent');
     try {
       await execPromise(`docker cp ${path.resolve(inputFile)} ${this.containerId}:/tmp/input.txt`);
       let command: string;
@@ -55,26 +76,8 @@ export class Runner {
       };
     }
   }
-}
 
-export async function createRunner(file: string): Promise<Runner> {
-  const ext = path.extname(file);
-  let language: Language;
-  if (ext === '.cpp') language = Language.Cpp;
-  else if (ext === '.py') language = Language.Python;
-  else throw new Error(`Unknown extension ${ext}`);
-
-  const containerId = (await execPromise('docker run -d -i --rm dominikkorsa/runner:1.0.0')).stdout.trim();
-  try {
-    if (language === Language.Cpp) {
-      await execPromise(`docker cp ${path.resolve(file)} ${containerId}:/tmp/code.cpp`);
-      await execPromise(`docker exec ${containerId} g++ /tmp/code.cpp -o /tmp/code`);
-    } else {
-      await execPromise(`docker cp ${path.resolve(file)} ${containerId}:/tmp/code.py`);
-    }
-  } catch (error) {
-    await execPromise(`docker kill ${containerId}`);
-    throw error;
+  public isStarted(): boolean {
+    return this.containerId !== undefined;
   }
-  return new Runner(containerId, language);
 }

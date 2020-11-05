@@ -3,6 +3,6 @@
 using namespace std;
 
 int main() {
-  while (True) {}
+  while (true) {}
   return 0;
 }
