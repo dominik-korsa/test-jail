@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import path from 'path';
 import * as fs from 'fs';
-import { Language, Runner } from '../src';
+import { isDockerAvailable, Language, Runner } from '../src';
 
 const res = path.resolve(__dirname, './resources');
 
@@ -15,6 +15,10 @@ function readFile(file: string): Promise<string> {
 
 describe('Run tests', () => {
   const runner = new Runner();
+
+  it('Test Docker available', async () => {
+    expect(await isDockerAvailable()).to.equal(true);
+  });
 
   it('Start runner', async function () {
     this.slow(10000);

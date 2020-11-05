@@ -89,3 +89,12 @@ export class Runner {
     return this.containerId !== undefined;
   }
 }
+
+export async function isDockerAvailable(): Promise<boolean> {
+  try {
+    const { stdout } = await execPromise('docker -v');
+    return /Docker version .+, build .+/g.test(stdout);
+  } catch (error) {
+    return false;
+  }
+}
