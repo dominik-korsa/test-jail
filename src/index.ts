@@ -1,8 +1,5 @@
-import util from 'util';
-import cp from 'child_process';
 import path from 'path';
-
-const execPromise = util.promisify(cp.exec);
+import { execPromise, execWithInput } from './utils';
 
 export interface ResultSuccess {
   type: 'success';
@@ -43,7 +40,7 @@ export class Runner {
     this.language = undefined;
   }
 
-  public async sendCode(file: string): Promise<void> {
+  public async sendCodeFile(file: string): Promise<void> {
     if (this.containerId === undefined) throw new Error('Container not started');
 
     const ext = path.extname(file);
@@ -57,6 +54,17 @@ export class Runner {
     } else {
       await execPromise(`docker cp ${path.resolve(file)} ${this.containerId}:/tmp/code.py`);
     }
+  }
+
+  public async sendCodeText(text: string, language: Language): Promise<void> {
+    if (this.containerId === undefined) throw new Error('Container not started');
+    if (language === Language.Cpp) {
+      await execWithInput(`docker exec -i ${this.containerId} cp /dev/stdin /tmp/code.cpp`, text);
+      await execPromise(`docker exec ${this.containerId} g++ /tmp/code.cpp -o /tmp/code`);
+    } else {
+      await execWithInput(`docker exec -i ${this.containerId} cp /dev/stdin /tmp/code.py`, text);
+    }
+    this.language = language;
   }
 
   public async testInputFile(inputFile: string, timeout: number): Promise<Result> {

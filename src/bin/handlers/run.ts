@@ -5,12 +5,9 @@ import ora from 'ora';
 import chalk from 'chalk';
 import replaceExt from 'replace-ext';
 import Table from 'cli-table3';
-import util from 'util';
-import glob from 'glob';
 import sequential from 'promise-sequential';
 import { Runner, Result } from '../../index';
-
-const globPromise = util.promisify(glob);
+import { globPromise } from '../../utils';
 
 export interface RunArgs {
   url: string;
@@ -67,7 +64,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   const runner = new Runner();
   await runner.start();
   try {
-    await runner.sendCode(code);
+    await runner.sendCodeFile(code);
     startingSpinner.succeed();
 
     let results: (Result & {

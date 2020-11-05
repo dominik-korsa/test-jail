@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import path from 'path';
 import * as fs from 'fs';
-import { Runner } from '../src';
+import { Language, Runner } from '../src';
 
 const res = path.resolve(__dirname, './resources');
 
@@ -24,14 +24,20 @@ describe('Run C++ tests', () => {
   });
 
   it('Send valid code', async function () {
-    if (!runner.isStarted()) this.skip();
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
     this.slow(5000);
     this.timeout(90000);
-    await runner.sendCode(resFile('code/1-valid.cpp'));
+    await runner.sendCodeFile(resFile('code/1-valid.cpp'));
   });
 
   it('Report success', async function () {
-    if (!runner.isStarted()) this.skip();
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
     this.slow(5000);
     this.timeout(90000);
     const result = await runner.testInputFile(resFile('input/1.in'), 30);
@@ -40,7 +46,10 @@ describe('Run C++ tests', () => {
   });
 
   it('Report success on second test', async function () {
-    if (!runner.isStarted()) this.skip();
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
     this.slow(5000);
     this.timeout(90000);
     const result = await runner.testInputFile(resFile('input/2.in'), 30);
@@ -56,14 +65,20 @@ describe('Run C++ tests', () => {
   // });
 
   it('Send runtime error code', async function () {
-    if (!runner.isStarted()) this.skip();
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
     this.slow(5000);
     this.timeout(90000);
-    await runner.sendCode(resFile('code/1-error.cpp'));
+    await runner.sendCodeFile(resFile('code/1-error.cpp'));
   });
 
   it('Report runtime error', async function () {
-    if (!runner.isStarted()) this.skip();
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
     this.slow(5000);
     this.timeout(90000);
 
@@ -71,19 +86,26 @@ describe('Run C++ tests', () => {
     expect(result).property('type').to.equal('runtime-error');
   });
 
-  it('Send timeout code', async function () {
-    if (!runner.isStarted()) this.skip();
+  it('Send timeout code as text', async function () {
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
     this.slow(5000);
     this.timeout(90000);
-    await runner.sendCode(resFile('code/1-timeout.cpp'));
+    const code = await readFile('code/1-timeout.cpp');
+    await runner.sendCodeText(code, Language.Cpp);
   });
 
   it('Report timeout', async function () {
-    if (!runner.isStarted()) this.skip();
-    this.slow(30000);
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
+    this.slow(15000);
     this.timeout(90000);
 
-    const result = await runner.testInputFile(resFile('input/1.in'), 10);
+    const result = await runner.testInputFile(resFile('input/1.in'), 5);
     expect(result).property('type').to.equal('timeout');
   });
 
