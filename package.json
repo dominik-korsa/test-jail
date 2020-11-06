@@ -11,7 +11,7 @@
     "build": "tsc",
     "build:watch": "tsc -w",
     "test": "mocha -r ts-node/register tests/**.ts",
-    "prepare": "npm run build && crlf --set=LF dist/*",
+    "prepublishOnly": "npm run build && crlf --set=LF dist/*",
     "release": "release-it --only-version",
     "lint": "eslint src tests -c .eslintrc.json",
     "lint:fix": "eslint src tests -c .eslintrc.json --fix"

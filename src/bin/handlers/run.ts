@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import replaceExt from 'replace-ext';
 import Table from 'cli-table3';
 import sequential from 'promise-sequential';
-import { Runner, Result } from '../../index';
+import { Runner, Result, pullContainerImage } from '../../index';
 import { globPromise } from '../../utils';
 
 export interface RunArgs {
@@ -59,6 +59,11 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
       process.exit(1);
     }
   }
+
+  const pullingSpinner = ora('Pulling container').start();
+  const { upToDate } = await pullContainerImage();
+  if (upToDate) pullingSpinner.info(`Pulling container: ${chalk.blue('Already up to date')}`);
+  else pullingSpinner.succeed();
 
   const startingSpinner = ora('Starting docker container').start();
   const runner = new Runner();

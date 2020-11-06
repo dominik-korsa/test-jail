@@ -23,6 +23,8 @@ export enum Language {
   Cpp,
 }
 
+const containerImageName = 'dominikkorsa/runner:1.0.0';
+
 export class Runner {
   private containerId?: string;
 
@@ -30,7 +32,7 @@ export class Runner {
 
   public async start(): Promise<void> {
     if (this.containerId !== undefined) return;
-    this.containerId = (await execPromise('docker run -d -i --rm dominikkorsa/runner:1.0.0')).stdout.trim();
+    this.containerId = (await execPromise(`docker run -d -i --rm ${containerImageName}`)).stdout.trim();
   }
 
   public async kill(): Promise<void> {
@@ -88,6 +90,15 @@ export class Runner {
   public isStarted(): boolean {
     return this.containerId !== undefined;
   }
+}
+
+export async function pullContainerImage(): Promise<{
+  upToDate: boolean,
+}> {
+  const { stdout } = await execPromise(`docker pull ${containerImageName}`);
+  return {
+    upToDate: stdout.includes('Status: Image is up to date'),
+  };
 }
 
 export async function isDockerAvailable(): Promise<boolean> {
