@@ -38,6 +38,9 @@
       ],
       "rules": {
         "func-names": ["off"]
+      },
+      "parserOptions": {
+        "project": "./tsconfig.tests.json"
       }
     }
   ],
