@@ -17,5 +17,9 @@
       "node",
       "mocha"
     ]
-  }
+  },
+  "include": [
+    "src",
+    "tests"
+  ]
 }
