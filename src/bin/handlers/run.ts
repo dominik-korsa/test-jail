@@ -17,11 +17,24 @@ export interface RunArgs {
   output: string;
   time: number;
   pattern: string;
+  overwrite: boolean;
+  clear: boolean;
 }
 
 export type OutputOverwriteMode = 'clear' | 'overwrite' | 'exit';
 
-async function getDirectoryOutputOverwriteMode(): Promise<OutputOverwriteMode> {
+function exitWithError(text: string) {
+  console.error(chalk`{red {bold Error:} ${text}}`);
+  process.exit(1);
+}
+
+function printWarning(text: string) {
+  console.warn(chalk`{yellowBright {bold Warning:} ${text}}`);
+}
+
+async function getDirOverwriteMode(argv: yargs.Arguments<RunArgs>): Promise<OutputOverwriteMode> {
+  if (argv.clear) return 'clear';
+  if (argv.overwrite) return 'overwrite';
   const answers = await Enquirer.prompt<{
     mode: OutputOverwriteMode;
   }>([
@@ -29,6 +42,7 @@ async function getDirectoryOutputOverwriteMode(): Promise<OutputOverwriteMode> {
       name: 'mode',
       type: 'select',
       message: 'The output directory is not empty. What do you want to do?',
+      required: true,
       choices: [
         {
           name: 'exit',
@@ -49,7 +63,8 @@ async function getDirectoryOutputOverwriteMode(): Promise<OutputOverwriteMode> {
   return answers.mode;
 }
 
-async function confirmFileOutputOverwrite(): Promise<boolean> {
+async function confirmFileOverwrite(argv: yargs.Arguments<RunArgs>): Promise<boolean> {
+  if (argv.overwrite) return true;
   const answers = await Enquirer.prompt<{
     overwrite: boolean;
   }>([
@@ -57,6 +72,7 @@ async function confirmFileOutputOverwrite(): Promise<boolean> {
       name: 'overwrite',
       type: 'confirm',
       message: 'The output file already exists, and will be overwritten. Continue?',
+      required: true,
     },
   ]);
   console.log();
@@ -74,143 +90,138 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   try {
     await fse.lstat(code);
   } catch (error) {
-    if (error.code === 'ENOENT') console.error('Code file doesn\'t exist');
-    else console.error(error);
-    process.exit(1);
+    if (error.code === 'ENOENT') exitWithError('Code file doesn\'t exist');
+    else exitWithError(error.message);
   }
 
   let inputStats: fse.Stats;
   try {
     inputStats = await fse.lstat(input);
-  } catch (error) {
-    if (error.code === 'ENOENT') console.error('Input file or directory doesn\'t exist');
-    else console.error(error);
-    process.exit(1);
-  }
 
-  try {
-    const outputStats = await fse.lstat(output);
-    if (outputStats.isDirectory()) {
-      if (!inputStats.isDirectory()) {
-        console.error('Output is a directory, but input is a file');
-        process.exit(1);
-      }
+    try {
+      const outputStats = await fse.lstat(output);
+      if (outputStats.isDirectory()) {
+        if (!inputStats.isDirectory()) exitWithError('Output is a directory, but input is a file');
 
-      const files = await fse.readdir(output);
-      if (files.length !== 0) {
-        const mode = await getDirectoryOutputOverwriteMode();
-        if (mode === 'exit') process.exit(0);
-        else if (mode === 'clear') await fse.emptyDir(output);
+        const files = await fse.readdir(output);
+        if (files.length !== 0) {
+          const mode = await getDirOverwriteMode(argv);
+          if (mode === 'exit') process.exit(0);
+          else if (mode === 'clear') await fse.emptyDir(output);
+        }
+      } else {
+        if (inputStats.isDirectory()) exitWithError('Output is a file, but input is a directory');
+        if (argv.clear) printWarning(chalk.yellow('Argument --clear can only be used with a directory output'));
+        if (!await confirmFileOverwrite(argv)) process.exit(0);
       }
-    } else {
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        if (inputStats.isDirectory()) await fse.mkdir(output);
+      } else exitWithError(error.message);
+    }
+
+    try {
+      const pullingSpinner = ora('Pulling container').start();
+      const { upToDate } = await pullContainerImagePromise;
+      if (upToDate) pullingSpinner.info(`Pulling container: ${chalk.blue('Already up to date')}`);
+      else pullingSpinner.succeed();
+    } catch (error) {
+      exitWithError(error.message);
+    }
+
+    const startingSpinner = ora('Starting docker container').start();
+    const runner = new Runner();
+    try {
+      await runner.start();
+      await runner.sendCodeFile(code);
+      startingSpinner.succeed();
+
+      let results: (Result & {
+        file: string;
+      })[];
+      const runSpinner = ora('Testing').start();
       if (inputStats.isDirectory()) {
-        console.error('Output is a file, but input is a directory');
-        process.exit(1);
-      }
-      if (!await confirmFileOutputOverwrite()) process.exit(0);
-    }
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      if (inputStats.isDirectory()) await fse.mkdir(output);
-    } else {
-      console.error(error);
-      process.exit(1);
-    }
-  }
-
-  const pullingSpinner = ora('Pulling container').start();
-  const { upToDate } = await pullContainerImagePromise;
-  if (upToDate) pullingSpinner.info(`Pulling container: ${chalk.blue('Already up to date')}`);
-  else pullingSpinner.succeed();
-
-  const startingSpinner = ora('Starting docker container').start();
-  const runner = new Runner();
-  await runner.start();
-  try {
-    await runner.sendCodeFile(code);
-    startingSpinner.succeed();
-
-    let results: (Result & {
-      file: string;
-    })[];
-    const runSpinner = ora('Testing').start();
-    if (inputStats.isDirectory()) {
-      const files = await globPromise(argv.pattern, { cwd: input });
-      results = await sequential(files.map((file) => async () => {
-        runSpinner.text = `Testing ${chalk.cyan(file)}`;
-        const result = await runner.testInputFile(path.resolve(input, file), argv.time);
+        const files = await globPromise(argv.pattern, { cwd: input });
+        results = await sequential(files.map((file) => async () => {
+          runSpinner.text = `Testing ${chalk.cyan(file)}`;
+          const result = await runner.testInputFile(path.resolve(input, file), argv.time);
+          if (result.type === 'success') {
+            await fse.writeFile(
+              path.resolve(output, replaceExt(file, '.out')),
+              result.output,
+              'utf8',
+            );
+          }
+          return {
+            ...result,
+            file,
+          };
+        }));
+      } else {
+        const result = await runner.testInputFile(input, argv.time);
         if (result.type === 'success') {
           await fse.writeFile(
-            path.resolve(output, replaceExt(file, '.out')),
+            output,
             result.output,
             'utf8',
           );
         }
-        return {
+        results = [{
           ...result,
-          file,
-        };
-      }));
-    } else {
-      const result = await runner.testInputFile(input, argv.time);
-      if (result.type === 'success') {
-        await fse.writeFile(
-          output,
-          result.output,
-          'utf8',
-        );
+          file: path.basename(argv.input),
+        }];
       }
-      results = [{
-        ...result,
-        file: path.basename(argv.input),
-      }];
+      runSpinner.succeed('Testing');
+      const stopSpinner = ora('Killing docker container').start();
+      await runner.kill();
+      stopSpinner.succeed();
+      const resultsTable = new Table({
+        head: [
+          'File',
+          'Status',
+          'Execution time',
+          'Error message',
+        ],
+        style: {
+          head: ['cyan'],
+        },
+      });
+      resultsTable.push(
+        ...results.map((result) => {
+          if (result.type === 'success') {
+            const timeRatio = Math.min(result.time / argv.time, 0.999);
+            const colors = [chalk.gray, chalk.white, chalk.yellow, chalk.red];
+            const color = colors[Math.floor(timeRatio * colors.length)];
+            return [
+              result.file,
+              chalk.green('✔ Success'),
+              color(`${result.time.toFixed(3)} s`),
+              '',
+            ];
+          }
+          if (result.type === 'runtime-error') {
+            return [
+              result.file,
+              chalk.red('✖ Runtime error'),
+              '',
+              result.message,
+            ];
+          }
+          return [
+            result.file,
+            chalk.yellow('⚠ Time limit exceeded'),
+            '',
+            '',
+          ];
+        }),
+      );
+      console.log(resultsTable.toString());
+    } catch (error) {
+      await runner.kill();
+      exitWithError(error.message);
     }
-    runSpinner.succeed('Testing');
-    const stopSpinner = ora('Killing docker container').start();
-    await runner.kill();
-    stopSpinner.succeed();
-    const resultsTable = new Table({
-      head: [
-        'File',
-        'Status',
-        'Execution time',
-        'Error message',
-      ],
-      style: {
-        head: ['cyan'],
-      },
-    });
-    resultsTable.push(
-      ...results.map((result) => {
-        if (result.type === 'success') {
-          const timeRatio = Math.min(result.time / argv.time, 0.999);
-          const colors = [chalk.gray, chalk.white, chalk.yellow, chalk.red];
-          const color = colors[Math.floor(timeRatio * colors.length)];
-          return [
-            result.file,
-            chalk.green('✔ Success'),
-            color(`${result.time.toFixed(3)} s`),
-            '',
-          ];
-        } if (result.type === 'runtime-error') {
-          return [
-            result.file,
-            chalk.red('✖ Runtime error'),
-            '',
-            result.message,
-          ];
-        }
-        return [
-          result.file,
-          chalk.yellow('⚠ Time limit exceeded'),
-          '',
-          '',
-        ];
-      }),
-    );
-    console.log(resultsTable.toString());
   } catch (error) {
-    await runner.kill();
-    throw error;
+    if (error.code === 'ENOENT') exitWithError('Input file or directory doesn\'t exist');
+    else exitWithError(error.message);
   }
 }

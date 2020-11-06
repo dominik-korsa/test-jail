@@ -35,6 +35,15 @@ yargs
         default: '**.in',
         describe: 'Glob pattern to select files in input directory. Matches all .in files by default. Does not apply if input is a single file.',
       });
+      commandYargs.option('overwrite', {
+        type: 'boolean',
+        describe: 'Overwrite files in output folder',
+      });
+      commandYargs.option('clear', {
+        type: 'boolean',
+        describe: 'Remove all files in output directory',
+      });
+      commandYargs.conflicts('clear', 'overwrite');
     },
     runHandler,
   )
