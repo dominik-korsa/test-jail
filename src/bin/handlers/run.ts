@@ -1,11 +1,12 @@
 import yargs from 'yargs';
 import path from 'path';
-import fs from 'fs';
+import fse from 'fs-extra';
 import ora from 'ora';
 import chalk from 'chalk';
 import replaceExt from 'replace-ext';
 import Table from 'cli-table3';
 import sequential from 'promise-sequential';
+import Enquirer from 'enquirer';
 import { Runner, Result, pullContainerImage } from '../../index';
 import { globPromise } from '../../utils';
 
@@ -18,22 +19,69 @@ export interface RunArgs {
   pattern: string;
 }
 
+export type OutputOverwriteMode = 'clear' | 'overwrite' | 'exit';
+
+async function getDirectoryOutputOverwriteMode(): Promise<OutputOverwriteMode> {
+  const answers = await Enquirer.prompt<{
+    mode: OutputOverwriteMode;
+  }>([
+    {
+      name: 'mode',
+      type: 'select',
+      message: 'The output directory is not empty. What do you want to do?',
+      choices: [
+        {
+          name: 'exit',
+          message: 'Exit the program ',
+        },
+        {
+          name: 'overwrite',
+          message: 'Overwrite only changed files',
+        },
+        {
+          name: 'clear',
+          message: 'Remove all files and directories in output directory',
+        },
+      ],
+    },
+  ]);
+  console.log();
+  return answers.mode;
+}
+
+async function confirmFileOutputOverwrite(): Promise<boolean> {
+  const answers = await Enquirer.prompt<{
+    overwrite: boolean;
+  }>([
+    {
+      name: 'overwrite',
+      type: 'confirm',
+      message: 'The output file already exists, and will be overwritten. Continue?',
+    },
+  ]);
+  console.log();
+  return answers.overwrite;
+}
+
 export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> {
   const code = path.resolve(process.cwd(), argv.code);
   const input = path.resolve(process.cwd(), argv.input);
   const output = path.resolve(process.cwd(), argv.output);
 
+  // Start pulling before asking to overwrite
+  const pullContainerImagePromise = pullContainerImage();
+
   try {
-    await fs.promises.lstat(code);
+    await fse.lstat(code);
   } catch (error) {
     if (error.code === 'ENOENT') console.error('Code file doesn\'t exist');
     else console.error(error);
     process.exit(1);
   }
 
-  let inputStats: fs.Stats;
+  let inputStats: fse.Stats;
   try {
-    inputStats = await fs.promises.lstat(input);
+    inputStats = await fse.lstat(input);
   } catch (error) {
     if (error.code === 'ENOENT') console.error('Input file or directory doesn\'t exist');
     else console.error(error);
@@ -41,19 +89,29 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   }
 
   try {
-    const outputStats = await fs.promises.lstat(output);
+    const outputStats = await fse.lstat(output);
     if (outputStats.isDirectory()) {
       if (!inputStats.isDirectory()) {
         console.error('Output is a directory, but input is a file');
         process.exit(1);
       }
-    } else if (inputStats.isDirectory()) {
-      console.error('Output is a file, but input is a directory');
-      process.exit(1);
+
+      const files = await fse.readdir(output);
+      if (files.length !== 0) {
+        const mode = await getDirectoryOutputOverwriteMode();
+        if (mode === 'exit') process.exit(0);
+        else if (mode === 'clear') await fse.emptyDir(output);
+      }
+    } else {
+      if (inputStats.isDirectory()) {
+        console.error('Output is a file, but input is a directory');
+        process.exit(1);
+      }
+      if (!await confirmFileOutputOverwrite()) process.exit(0);
     }
   } catch (error) {
     if (error.code === 'ENOENT') {
-      if (inputStats.isDirectory()) await fs.promises.mkdir(output);
+      if (inputStats.isDirectory()) await fse.mkdir(output);
     } else {
       console.error(error);
       process.exit(1);
@@ -61,7 +119,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   }
 
   const pullingSpinner = ora('Pulling container').start();
-  const { upToDate } = await pullContainerImage();
+  const { upToDate } = await pullContainerImagePromise;
   if (upToDate) pullingSpinner.info(`Pulling container: ${chalk.blue('Already up to date')}`);
   else pullingSpinner.succeed();
 
@@ -82,7 +140,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
         runSpinner.text = `Testing ${chalk.cyan(file)}`;
         const result = await runner.testInputFile(path.resolve(input, file), argv.time);
         if (result.type === 'success') {
-          await fs.promises.writeFile(
+          await fse.writeFile(
             path.resolve(output, replaceExt(file, '.out')),
             result.output,
             'utf8',
@@ -96,7 +154,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
     } else {
       const result = await runner.testInputFile(input, argv.time);
       if (result.type === 'success') {
-        await fs.promises.writeFile(
+        await fse.writeFile(
           output,
           result.output,
           'utf8',
