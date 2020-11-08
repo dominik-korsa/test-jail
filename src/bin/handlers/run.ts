@@ -7,7 +7,9 @@ import replaceExt from 'replace-ext';
 import Table from 'cli-table3';
 import sequential from 'promise-sequential';
 import Enquirer from 'enquirer';
-import { Runner, Result, pullContainerImage } from '../../index';
+import {
+ Runner, Result, pullContainerImage, isImagePulled,
+} from '../../index';
 import { globPromise } from '../../utils';
 
 export interface RunArgs {
@@ -85,7 +87,8 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   const output = path.resolve(process.cwd(), argv.output);
 
   // Start pulling before asking to overwrite
-  const pullContainerImagePromise = pullContainerImage();
+  const imagePulled = await isImagePulled();
+  const pullContainerImagePromise: null | Promise<void> = imagePulled ? null : pullContainerImage();
 
   try {
     await fse.lstat(code);
@@ -120,13 +123,14 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
       } else exitWithError(error.message);
     }
 
-    try {
-      const pullingSpinner = ora('Pulling container').start();
-      const { upToDate } = await pullContainerImagePromise;
-      if (upToDate) pullingSpinner.info(`Pulling container: ${chalk.blue('Already up to date')}`);
-      else pullingSpinner.succeed();
-    } catch (error) {
-      exitWithError(error.message);
+    if (!imagePulled) {
+      try {
+        const pullingSpinner = ora('Pulling container').start();
+        await pullContainerImagePromise;
+        pullingSpinner.succeed();
+      } catch (error) {
+        exitWithError(error.message);
+      }
     }
 
     const startingSpinner = ora('Starting docker container').start();

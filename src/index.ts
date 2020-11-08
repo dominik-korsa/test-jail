@@ -1,4 +1,5 @@
 import path from 'path';
+import eol from 'eol';
 import { execPromise, execWithInput } from './utils';
 
 export interface ResultSuccess {
@@ -92,13 +93,16 @@ export class Runner {
   }
 }
 
-export async function pullContainerImage(): Promise<{
-  upToDate: boolean,
-}> {
-  const { stdout } = await execPromise(`docker pull ${containerImageName}`);
-  return {
-    upToDate: stdout.includes('Status: Image is up to date'),
-  };
+export async function isImagePulled(): Promise<boolean> {
+  const { stdout } = await execPromise(`docker images -q ${containerImageName}`);
+  return eol
+    .split(stdout)
+    .filter((line) => line.trim().length > 0)
+    .length > 0;
+}
+
+export async function pullContainerImage(): Promise<void> {
+  await execPromise(`docker pull ${containerImageName}`);
 }
 
 export async function isDockerAvailable(): Promise<boolean> {
