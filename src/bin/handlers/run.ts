@@ -7,8 +7,9 @@ import replaceExt from 'replace-ext';
 import Table from 'cli-table3';
 import sequential from 'promise-sequential';
 import Enquirer from 'enquirer';
+import open from 'open';
 import {
- Runner, Result, pullContainerImage, isImagePulled,
+  Runner, Result, pullContainerImage, isImagePulled, isDockerAvailable,
 } from '../../index';
 import { globPromise } from '../../utils';
 
@@ -85,6 +86,24 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   const code = path.resolve(process.cwd(), argv.code);
   const input = path.resolve(process.cwd(), argv.input);
   const output = path.resolve(process.cwd(), argv.output);
+
+  if (!(await isDockerAvailable())) {
+    const downloadPage = 'https://docs.docker.com/engine/install/';
+    console.log(chalk.red.bold('Docker is not available'));
+    console.log(chalk`{cyan You can download it from: {blue.underline ${downloadPage}}}`);
+    console.log(chalk.cyan('To verify your installation run:'));
+    console.log(chalk.blue('docker -v'));
+    const { openPage } = await Enquirer.prompt<{
+      openPage: boolean
+    }>([{
+      name: 'openPage',
+      type: 'confirm',
+      message: 'Do you want to open the install page now?',
+      initial: true,
+    }]);
+    if (openPage) await open(downloadPage, { wait: true });
+    process.exit(1);
+  }
 
   // Start pulling before asking to overwrite
   const imagePulled = await isImagePulled();
