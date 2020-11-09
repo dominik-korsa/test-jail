@@ -11,6 +11,7 @@
     "build": "tsc",
     "build:watch": "tsc -w",
     "test": "mocha -r ts-node/register tests/**.ts",
+    "test:cov": "nyc --reporter=lcov mocha -r ts-node/register tests/**.ts",
     "prepublishOnly": "npm run build && crlf --set=LF dist/*",
     "release": "release-it --only-version",
     "lint": "eslint src tests -c .eslintrc.json",
@@ -51,6 +52,7 @@
     "eslint-plugin-import": "^2.22.1",
     "esm": "^3.2.25",
     "mocha": "^8.2.1",
+    "nyc": "^15.1.0",
     "release-it": "^14.2.1",
     "ts-node": "^9.0.0",
     "typescript": "^4.0.5"
