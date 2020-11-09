@@ -314,10 +314,9 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
         runSpinner.text = `Testing ${chalk.cyan(file)}`;
         const result = await runner.testInputFile(path.resolve(input, file), argv.time);
         if (result.type === 'success') {
-          await fse.writeFile(
+          await runner.saveOutput(
+            result.outputContainerPath,
             path.resolve(output, replaceExt(file, '.out')),
-            result.output,
-            'utf8',
           );
         }
         return {
@@ -328,11 +327,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
     } else {
       const result = await runner.testInputFile(input, argv.time);
       if (result.type === 'success') {
-        await fse.writeFile(
-          output,
-          result.output,
-          'utf8',
-        );
+        await runner.saveOutput(result.outputContainerPath, output);
       }
       results = [{
         ...result,
@@ -364,11 +359,13 @@ async function getTestResult(
   result: ResultSuccess,
   file: string,
   outputFile: string,
+  runner: Runner,
 ): Promise<PResultSuccess | PResultWrongAnswer> {
   const validOutput = await fse.readFile(outputFile, 'utf-8');
+  const output = await runner.getOutputAsText(result.outputContainerPath);
   const diff = Diff.diffArrays(
     eol.split(validOutput.trimEnd()),
-    eol.split(result.output.trimEnd()),
+    eol.split(output.trimEnd()),
   );
   if (diff.findIndex(
     (change) => change.added || change.removed,
@@ -456,7 +453,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
         const result = await runner.testInputFile(path.resolve(input, file), argv.time);
         if (result.type === 'success') {
           const outputFileResolved = path.resolve(output, replaceExt(file, argv.outputExt));
-          return getTestResult(result, file, outputFileResolved);
+          return getTestResult(result, file, outputFileResolved, runner);
         }
         return {
           ...result,
@@ -468,7 +465,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
       const file = path.basename(argv.input);
       if (result.type === 'success') {
         results = [
-          await getTestResult(result, file, output)];
+          await getTestResult(result, file, output, runner)];
       } else {
         results = [{
           ...result,

@@ -1,10 +1,11 @@
 import path from 'path';
 import eol from 'eol';
+import cp from 'child_process';
 import { execPromise, execWithInput } from './utils';
 
 export interface ResultSuccess {
   type: 'success';
-  output: string;
+  outputContainerPath: string;
   time: number;
 }
 
@@ -24,7 +25,7 @@ export enum Language {
   Cpp,
 }
 
-const containerImageName = 'dominikkorsa/runner:1.0.0';
+const containerImageName = 'dominikkorsa/runner:1.1.0';
 
 export class Runner {
   private containerId?: string;
@@ -74,7 +75,7 @@ export class Runner {
     if (this.containerId === undefined) throw new Error('Container not started');
     if (this.language === undefined) throw new Error('Code not sent');
     try {
-      await execPromise(`docker cp ${path.resolve(inputFile)} ${this.containerId}:/tmp/input.txt`);
+      await execPromise(`docker cp ${path.resolve(inputFile)} ${this.containerId}:/tmp/input.in`);
       let command: string;
       if (this.language === Language.Cpp) command = '/tmp/code';
       else command = 'python /tmp/code.py';
@@ -86,6 +87,32 @@ export class Runner {
         message: error.message,
       };
     }
+  }
+
+  public async saveOutput(outputContainerPath: string, savePath: string): Promise<void> {
+    if (this.containerId === undefined) throw new Error('Container not started');
+    await execPromise(`docker cp ${this.containerId}:${outputContainerPath} ${path.resolve(savePath)}`);
+  }
+
+  public getOutputAsText(outputContainerPath: string): Promise<string> {
+    if (this.containerId === undefined) throw new Error('Container not started');
+    return new Promise(((resolve, reject) => {
+      const process = cp.spawn(
+        `docker exec ${this.containerId} cat ${outputContainerPath}`,
+        {
+          shell: true,
+        },
+      );
+      let text = '';
+      process.stdout.on('data', ((chunk) => {
+        text += chunk;
+      }));
+      process.on('close', (code) => {
+        if (code !== 0) reject(new Error(`Process exited with code ${code}`));
+        else resolve(text);
+      });
+      process.on('error', reject);
+    }));
   }
 
   public isStarted(): boolean {
