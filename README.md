@@ -2,6 +2,8 @@
 Run C++ and Python programs against input files in a Docker container and save the output to files.
 
 ![npm](https://img.shields.io/npm/v/awesome-test-runner?style=flat-square)
+![Codecov](https://img.shields.io/codecov/c/github/dominik-korsa/awesome-test-runner?style=flat-square&token=QIRETKDW7L)
+![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/dominikkorsa/runner?label=docker%20image%20size&style=flat-square)
 
 ##### Requires Docker to be installed on your system
 You can verify Docker installation using
@@ -12,7 +14,7 @@ docker -v
 ## Usage
 Install using:
 ```shell script
-npm i awesome-test-runner -g 
+npm i awesome-test-runner -g
 ```
 Usage help is available after installation:
 ```shell script
