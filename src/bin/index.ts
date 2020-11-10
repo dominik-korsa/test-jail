@@ -35,7 +35,7 @@ yargs
       commandYargs.option('pattern', {
         type: 'string',
         default: '**.in',
-        describe: 'Glob pattern to select files in input directory. Does not apply if input is a single file.',
+        describe: 'Glob pattern to select files in input directory. Does not apply if input is a single file',
       });
       commandYargs.option('overwrite', {
         type: 'boolean',
@@ -77,12 +77,17 @@ yargs
       commandYargs.option('inputPattern', {
         type: 'string',
         default: '**.in',
-        describe: 'Glob pattern to select files in input directory. Does not apply if input is a single file.',
+        describe: 'Glob pattern to select files in input directory. Does not apply if input is a single file',
       });
       commandYargs.option('outputExt', {
         type: 'string',
         default: '.out',
-        describe: 'Extension of output files. Does not apply if output is a single file.',
+        describe: 'Extension of output files. Does not apply if output is a single file',
+      });
+      commandYargs.option('lineByLine', {
+        alias: 'lbl',
+        type: 'boolean',
+        describe: 'Compare expected and actual output line by line, instead of using jsdiff',
       });
     },
     testHandler,

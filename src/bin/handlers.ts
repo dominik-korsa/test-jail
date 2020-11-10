@@ -48,7 +48,8 @@ interface PResultWrongAnswer {
   type: 'wrong-answer';
   time: number;
   file: string;
-  diff: Diff.ArrayChange<string>[];
+  output: string;
+  expectedOutput: string;
 }
 
 interface PResultRuntimeError {
@@ -78,7 +79,65 @@ interface ChangedChunk {
 
 type Chunk = NotChangedChunk | ChangedChunk;
 
-function generateChunks(diff: Diff.ArrayChange<string>[]) {
+function generateLBLChunks(expectedOutput: string[], output: string[]) {
+  const chunks: Chunk[] = [];
+  for (let i = 0; i < expectedOutput.length && i < output.length; i += 1) {
+    const lastChunk: Chunk | undefined = chunks[chunks.length - 1];
+    const expOutLine = expectedOutput[i];
+    const outLine = output[i];
+    if (expOutLine === outLine) {
+      if (lastChunk && !lastChunk.changed) {
+        lastChunk.output.push(outLine);
+      } else {
+        chunks.push({
+          changed: false,
+          output: [outLine],
+        });
+      }
+    } else if (lastChunk && lastChunk.changed) {
+      lastChunk.expectedOutput.push(expOutLine);
+      lastChunk.output.push(outLine);
+    } else {
+      chunks.push({
+        changed: true,
+        expectedOutput: [expOutLine],
+        output: [outLine],
+      });
+    }
+  }
+  const lastChunk: Chunk | undefined = chunks[chunks.length - 1];
+  const missingExpOutLines = expectedOutput.slice(output.length);
+  const missingOutLines = output.slice(expectedOutput.length);
+  if (missingExpOutLines.length > 0) {
+    if (lastChunk && lastChunk.changed) {
+      lastChunk.expectedOutput.push(...missingExpOutLines);
+    } else {
+      chunks.push({
+        changed: true,
+        expectedOutput: missingExpOutLines,
+        output: [],
+      });
+    }
+  }
+  if (missingOutLines.length > 0) {
+    if (lastChunk && lastChunk.changed) {
+      lastChunk.output.push(...missingOutLines);
+    } else {
+      chunks.push({
+        changed: true,
+        expectedOutput: [],
+        output: missingExpOutLines,
+      });
+    }
+  }
+  return chunks;
+}
+
+function generateDiffChunks(expectedOutput: string[], output: string[]) {
+  const diff = Diff.diffArrays(
+    expectedOutput,
+    output,
+  );
   const chunks: Chunk[] = [];
   diff.forEach((change) => {
     const lastChunk: Chunk | undefined = chunks[chunks.length - 1];
@@ -120,7 +179,140 @@ function validLineCell(value: string, expOutLine: number, outLine: number) {
   ];
 }
 
-function printResults(results: PrintableResult[], timeLimit: number) {
+function printOutput(result: PResultWrongAnswer, lbl: boolean) {
+  const diffTable = new Table({
+    chars: {
+      top: '',
+      'top-mid': '',
+      'top-left': '',
+      'top-right': '',
+      bottom: '',
+      'bottom-mid': '',
+      'bottom-left': '',
+      'bottom-right': '',
+      left: '',
+      'left-mid': '',
+      mid: '',
+      'mid-mid': '',
+      right: '',
+      'right-mid': '',
+      middle: ' ',
+    },
+    style: { 'padding-left': 0, 'padding-right': 0 },
+  });
+
+  diffTable.push(
+    [
+      {
+        colSpan: 2,
+        content: chalk.blueBright('Expected'),
+      },
+      chalk.grey(''),
+      {
+        colSpan: 2,
+        content: chalk.blueBright('Actual'),
+      },
+    ], [
+      chalk.blue('#'),
+      chalk.blue('Value'),
+      chalk.grey(''),
+      chalk.blue('#'),
+      chalk.blue('Value'),
+    ],
+  );
+
+  const expectedOutput = eol.split(result.expectedOutput);
+  const output = eol.split(result.output);
+  let chunks: Chunk[];
+  if (lbl) {
+    chunks = generateLBLChunks(
+      expectedOutput,
+      output,
+    );
+  } else {
+    chunks = generateDiffChunks(
+      expectedOutput,
+      output,
+    );
+  }
+
+  let outLine = 0;
+  let expOutLine = 0;
+  chunks.forEach((chunk, index) => {
+    if (chunk.changed) {
+      const zip = _.zip(chunk.expectedOutput, chunk.output);
+      zip.forEach(([expectedOutputValue, outputValue]) => {
+        if (expectedOutputValue === undefined) {
+          outLine += 1;
+          diffTable.push([
+            '',
+            '',
+            chalk.redBright('+'),
+            chalk.grey.bold(outLine),
+            chalk.redBright.bold(outputValue),
+          ]);
+        } else if (outputValue === undefined) {
+          expOutLine += 1;
+          diffTable.push([
+            chalk.grey.bold(expOutLine),
+            expectedOutputValue,
+            chalk.redBright('-'),
+            {
+              colSpan: 2,
+              content: chalk.red('Line missing'),
+            },
+          ]);
+        } else {
+          outLine += 1;
+          expOutLine += 1;
+          diffTable.push([
+            chalk.grey.bold(expOutLine),
+            expectedOutputValue,
+            chalk.redBright('>'),
+            chalk.grey.bold(outLine),
+            chalk.redBright.bold(outputValue),
+          ]);
+        }
+      });
+    } else if (chunk.output.length > 5) {
+      const first = index === 0;
+      const last = index === chunks.length - 1;
+      let hiddenLines = chunk.output.length;
+      if (!first) {
+        chunk.output.slice(0, 2).forEach(((value) => {
+          outLine += 1;
+          expOutLine += 1;
+          diffTable.push(validLineCell(value, expOutLine, outLine));
+        }));
+        hiddenLines -= 2;
+      }
+      if (!last) hiddenLines -= 2;
+      diffTable.push([{
+        colSpan: 5,
+        content: chalk.gray.bold(`(…) ${hiddenLines} lines hidden`),
+      }]);
+      outLine += hiddenLines;
+      expOutLine += hiddenLines;
+      if (!last) {
+        chunk.output.slice(chunk.output.length - 2).forEach(((value) => {
+          outLine += 1;
+          expOutLine += 1;
+          diffTable.push(validLineCell(value, expOutLine, outLine));
+        }));
+      }
+    } else {
+      chunk.output.forEach(((value) => {
+        outLine += 1;
+        expOutLine += 1;
+        diffTable.push(validLineCell(value, expOutLine, outLine));
+      }));
+    }
+  });
+
+  return diffTable.toString();
+}
+
+function printResults(results: PrintableResult[], timeLimit: number, lbl: boolean) {
   const resultsTable = new Table({
     head: [
       'File',
@@ -143,124 +335,9 @@ function printResults(results: PrintableResult[], timeLimit: number) {
         color(`${result.time.toFixed(3)} s`),
       ]);
       if (result.type === 'wrong-answer') {
-        const diffTable = new Table({
-          chars: {
-            top: '',
-            'top-mid': '',
-            'top-left': '',
-            'top-right': '',
-            bottom: '',
-            'bottom-mid': '',
-            'bottom-left': '',
-            'bottom-right': '',
-            left: '',
-            'left-mid': '',
-            mid: '',
-            'mid-mid': '',
-            right: '',
-            'right-mid': '',
-            middle: ' ',
-          },
-          style: { 'padding-left': 0, 'padding-right': 0 },
-        });
-
-        diffTable.push(
-          [
-            {
-              colSpan: 2,
-              content: chalk.blueBright('Expected'),
-            },
-            chalk.grey(''),
-            {
-              colSpan: 2,
-              content: chalk.blueBright('Actual'),
-            },
-          ], [
-            chalk.blue('#'),
-            chalk.blue('Value'),
-            chalk.grey(''),
-            chalk.blue('#'),
-            chalk.blue('Value'),
-          ],
-        );
-
-        const chunks = generateChunks(result.diff);
-
-        let outLine = 0;
-        let expOutLine = 0;
-        chunks.forEach((chunk, index) => {
-          if (chunk.changed) {
-            const zip = _.zip(chunk.expectedOutput, chunk.output);
-            zip.forEach(([expectedOutputValue, outputValue]) => {
-              if (expectedOutputValue === undefined) {
-                outLine += 1;
-                diffTable.push([
-                  '',
-                  '',
-                  chalk.redBright('+'),
-                  chalk.grey.bold(outLine),
-                  chalk.redBright.bold(outputValue),
-                ]);
-              } else if (outputValue === undefined) {
-                expOutLine += 1;
-                diffTable.push([
-                  chalk.grey.bold(expOutLine),
-                  expectedOutputValue,
-                  chalk.redBright('-'),
-                  {
-                    colSpan: 2,
-                    content: chalk.red('Line missing'),
-                  },
-                ]);
-              } else {
-                outLine += 1;
-                expOutLine += 1;
-                diffTable.push([
-                  chalk.grey.bold(expOutLine),
-                  expectedOutputValue,
-                  chalk.redBright('>'),
-                  chalk.grey.bold(outLine),
-                  chalk.redBright.bold(outputValue),
-                ]);
-              }
-            });
-          } else if (chunk.output.length > 5) {
-            const first = index === 0;
-            const last = index === chunks.length - 1;
-            let hiddenLines = chunk.output.length;
-            if (!first) {
-              chunk.output.slice(0, 2).forEach(((value) => {
-                outLine += 1;
-                expOutLine += 1;
-                diffTable.push(validLineCell(value, expOutLine, outLine));
-              }));
-              hiddenLines -= 2;
-            }
-            if (!last) hiddenLines -= 2;
-            diffTable.push([{
-              colSpan: 5,
-              content: chalk.gray.bold(`(…) ${hiddenLines} lines hidden`),
-            }]);
-            outLine += hiddenLines;
-            expOutLine += hiddenLines;
-            if (!last) {
-              chunk.output.slice(chunk.output.length - 2).forEach(((value) => {
-                outLine += 1;
-                expOutLine += 1;
-                diffTable.push(validLineCell(value, expOutLine, outLine));
-              }));
-            }
-          } else {
-            chunk.output.forEach(((value) => {
-              outLine += 1;
-              expOutLine += 1;
-              diffTable.push(validLineCell(value, expOutLine, outLine));
-            }));
-          }
-        });
         resultsTable.push([{
           colSpan: 3,
-          content: diffTable.toString(),
+          content: printOutput(result, lbl),
         }]);
       }
     } else if (result.type === 'runtime-error') {
@@ -456,7 +533,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
     const stopSpinner = ora('Killing docker container').start();
     await runner.kill();
     stopSpinner.succeed();
-    printResults(results, argv.time);
+    printResults(results, argv.time, false);
   } catch (error) {
     await runner.kill();
     exitWithError(error.message);
@@ -471,6 +548,7 @@ export interface TestArgs {
   time: number;
   inputPattern: string;
   outputExt: string;
+  lineByLine: boolean;
 }
 
 async function getTestResult(
@@ -479,19 +557,14 @@ async function getTestResult(
   outputFile: string,
   runner: Runner,
 ): Promise<PResultSuccess | PResultWrongAnswer> {
-  const validOutput = await fse.readFile(outputFile, 'utf-8');
-  const output = await runner.getOutputAsText(result.outputContainerPath);
-  const diff = Diff.diffArrays(
-    eol.split(validOutput.trimEnd()),
-    eol.split(output.trimEnd()),
-  );
-  if (diff.findIndex(
-    (change) => change.added || change.removed,
-  ) !== -1) {
+  const expectedOutput = eol.lf(await fse.readFile(outputFile, 'utf-8')).trimEnd();
+  const output = eol.lf(await runner.getOutputAsText(result.outputContainerPath)).trimEnd();
+  if (expectedOutput !== output) {
     return {
       type: 'wrong-answer',
       time: result.time,
-      diff,
+      expectedOutput,
+      output,
       file,
     };
   }
@@ -595,7 +668,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     const stopSpinner = ora('Killing docker container').start();
     await runner.kill();
     stopSpinner.succeed();
-    printResults(results, argv.time);
+    printResults(results, argv.time, argv.lineByLine);
   } catch (error) {
     await runner.kill();
     exitWithError(error.message);
