@@ -10,6 +10,7 @@ import Enquirer from 'enquirer';
 import open from 'open';
 import * as Diff from 'diff';
 import eol from 'eol';
+import _ from 'lodash';
 import {
   Runner, pullContainerImage, isImagePulled, isDockerAvailable, ResultSuccess,
 } from '../index';
@@ -63,6 +64,61 @@ interface PResultTimeout {
 
 type PrintableResult = PResultSuccess | PResultWrongAnswer | PResultRuntimeError | PResultTimeout;
 
+interface NotChangedChunk {
+  changed: false,
+  output: string[],
+}
+
+interface ChangedChunk {
+  changed: true,
+  expectedOutput: string[],
+  output: string[],
+}
+
+type Chunk = NotChangedChunk | ChangedChunk;
+
+function generateChunks(diff: Diff.ArrayChange<string>[]) {
+  const chunks: Chunk[] = [];
+  diff.forEach((change) => {
+    const lastChunk: Chunk | undefined = chunks[chunks.length - 1];
+    if (change.added) {
+      if (lastChunk && lastChunk.changed) {
+        lastChunk.output.push(...change.value);
+      } else {
+        chunks.push({
+          changed: true,
+          expectedOutput: [],
+          output: [...change.value],
+        });
+      }
+    } else if (change.removed) {
+      if (lastChunk && lastChunk.changed) {
+        lastChunk.expectedOutput.push(...change.value);
+      } else {
+        chunks.push({
+          changed: true,
+          expectedOutput: [...change.value],
+          output: [],
+        });
+      }
+    } else {
+      chunks.push({
+        changed: false,
+        output: change.value,
+      });
+    }
+  });
+  return chunks;
+}
+
+function validLineCell(value: string, expOutLine: number, outLine: number) {
+  return [
+    chalk.grey(expOutLine), value,
+    chalk.grey('│'),
+    chalk.grey(outLine), value,
+  ];
+}
+
 function printResults(results: PrintableResult[], timeLimit: number) {
   const resultsTable = new Table({
     head: [
@@ -106,41 +162,100 @@ function printResults(results: PrintableResult[], timeLimit: number) {
           },
           style: { 'padding-left': 0, 'padding-right': 0 },
         });
+
+        diffTable.push(
+          [
+            {
+              colSpan: 2,
+              content: chalk.blueBright('Expected'),
+            },
+            chalk.grey(''),
+            {
+              colSpan: 2,
+              content: chalk.blueBright('Actual'),
+            },
+          ], [
+            chalk.blue('#'),
+            chalk.blue('Value'),
+            chalk.grey(''),
+            chalk.blue('#'),
+            chalk.blue('Value'),
+          ],
+        );
+
+        const chunks = generateChunks(result.diff);
+
         let outLine = 0;
         let expOutLine = 0;
-        result.diff.forEach((change) => {
-          change.value.forEach((line, index) => {
-            if (change.added) {
-              outLine += 1;
-              diffTable.push([
-                '',
-                chalk.gray(outLine),
-                chalk`{greenBright + {bold ${line}}}`,
-              ]);
-            } else if (change.removed) {
-              expOutLine += 1;
-              diffTable.push([
-                chalk.gray(expOutLine),
-                '',
-                chalk`{redBright - {bold ${line}}}`,
-              ]);
-            } else {
-              outLine += 1;
-              expOutLine += 1;
-              if (index < 2 || change.value.length - index <= 2 || change.value.length <= 5) {
+        chunks.forEach((chunk, index) => {
+          if (chunk.changed) {
+            const zip = _.zip(chunk.expectedOutput, chunk.output);
+            zip.forEach(([expectedOutputValue, outputValue]) => {
+              if (expectedOutputValue === undefined) {
+                outLine += 1;
                 diffTable.push([
-                  chalk.gray(expOutLine),
-                  chalk.gray(outLine),
-                  `  ${line}`,
+                  '',
+                  '',
+                  chalk.redBright('+'),
+                  chalk.grey.bold(outLine),
+                  chalk.redBright.bold(outputValue),
                 ]);
-              } else if (index === 2) {
-                diffTable.push([{
-                  colSpan: 3,
-                  content: chalk.gray.bold(`(…) ${change.value.length - 4} lines hidden`),
-                }]);
+              } else if (outputValue === undefined) {
+                expOutLine += 1;
+                diffTable.push([
+                  chalk.grey.bold(expOutLine),
+                  expectedOutputValue,
+                  chalk.redBright('-'),
+                  {
+                    colSpan: 2,
+                    content: chalk.red('Line missing'),
+                  },
+                ]);
+              } else {
+                outLine += 1;
+                expOutLine += 1;
+                diffTable.push([
+                  chalk.grey.bold(expOutLine),
+                  expectedOutputValue,
+                  chalk.redBright('>'),
+                  chalk.grey.bold(outLine),
+                  chalk.redBright.bold(outputValue),
+                ]);
               }
+            });
+          } else if (chunk.output.length > 5) {
+            const first = index === 0;
+            const last = index === chunks.length - 1;
+            let hiddenLines = chunk.output.length;
+            if (!first) {
+              chunk.output.slice(0, 2).forEach(((value) => {
+                outLine += 1;
+                expOutLine += 1;
+                diffTable.push(validLineCell(value, expOutLine, outLine));
+              }));
+              hiddenLines -= 2;
             }
-          });
+            if (!last) hiddenLines -= 2;
+            diffTable.push([{
+              colSpan: 5,
+              content: chalk.gray.bold(`(…) ${hiddenLines} lines hidden`),
+            }]);
+            outLine += hiddenLines;
+            expOutLine += hiddenLines;
+            if (!last) {
+              chunk.output.slice(chunk.output.length - 2).forEach(((value) => {
+                outLine += 1;
+                expOutLine += 1;
+                diffTable.push(validLineCell(value, expOutLine, outLine));
+              }));
+            }
+          } else {
+            chunk.output.forEach(((value) => {
+              outLine += 1;
+              expOutLine += 1;
+              diffTable.push(validLineCell(value, expOutLine, outLine));
+            }));
+          }
         });
         resultsTable.push([{
           colSpan: 3,
