@@ -39,40 +39,41 @@ function printWarning(text: string) {
 }
 
 interface PResultSuccess {
-  type: 'success',
-  time: number,
-  file: string,
+  type: 'success';
+  time: number;
+  file: string;
 }
 
 interface PResultWrongAnswer {
-  type: 'wrong-answer',
-  time: number,
-  file: string,
-  diff: Diff.ArrayChange<string>[],
+  type: 'wrong-answer';
+  time: number;
+  file: string;
+  diff: Diff.ArrayChange<string>[];
 }
 
 interface PResultRuntimeError {
-  type: 'runtime-error',
-  message: string,
-  file: string,
+  type: 'runtime-error';
+  message: string;
+  stderr?: string;
+  file: string;
 }
 
 interface PResultTimeout {
-  type: 'timeout',
-  file: string,
+  type: 'timeout';
+  file: string;
 }
 
 type PrintableResult = PResultSuccess | PResultWrongAnswer | PResultRuntimeError | PResultTimeout;
 
 interface NotChangedChunk {
-  changed: false,
-  output: string[],
+  changed: false;
+  output: string[];
 }
 
 interface ChangedChunk {
-  changed: true,
-  expectedOutput: string[],
-  output: string[],
+  changed: true;
+  expectedOutput: string[];
+  output: string[];
 }
 
 type Chunk = NotChangedChunk | ChangedChunk;
@@ -263,6 +264,8 @@ function printResults(results: PrintableResult[], timeLimit: number) {
         }]);
       }
     } else if (result.type === 'runtime-error') {
+      let errorMessage = chalk.red.bold(result.message);
+      if (result.stderr) errorMessage += chalk`\n\n{red ${result.stderr.trimEnd()}}`;
       resultsTable.push([
         result.file,
         chalk.red('✖ Runtime error'),
@@ -271,7 +274,7 @@ function printResults(results: PrintableResult[], timeLimit: number) {
       resultsTable.push([
         {
           colSpan: 3,
-          content: chalk.red(result.message),
+          content: errorMessage,
         },
       ]);
     } else {

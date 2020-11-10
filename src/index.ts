@@ -15,6 +15,7 @@ export interface ResultSuccess {
 export interface ResultRuntimeError {
   type: 'runtime-error';
   message: string;
+  stderr?: string;
 }
 
 export interface ResultTimeoutError {
@@ -28,7 +29,7 @@ export enum Language {
   Cpp,
 }
 
-const containerImageName = 'dominikkorsa/runner:1.1.0';
+const containerImageName = 'dominikkorsa/runner:1.1.1';
 
 export class Runner {
   private containerId?: string;

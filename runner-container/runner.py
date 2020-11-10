@@ -21,13 +21,19 @@ program_output = open(program_output_path, 'w')
 
 start = time()
 try:
-  run_process = subprocess.Popen(args.command, stdout=program_output, stdin=program_input)
-  run_process.wait(timeout=args.timeout)
+  run_process = subprocess.Popen(
+    args.command,
+    stdout=program_output,
+    stderr=subprocess.PIPE,
+    stdin=program_input,
+  )
+  _, err = run_process.communicate(timeout=args.timeout)
   end = time()
   if (run_process.returncode != 0):
     print(json.dumps({
       "type": "runtime-error",
-      "message": "Process exited with error code {:d}".format(run_process.returncode)
+      "message": "Process exited with error code {:d}".format(run_process.returncode),
+      "stderr": err.decode("utf-8"),
     }))
   else:
     print(json.dumps({
