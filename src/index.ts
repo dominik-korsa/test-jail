@@ -56,20 +56,20 @@ export class Runner {
     else throw new UnknownExtensionError(ext);
 
     if (this.language === Language.Cpp) {
-      await execPromise(`docker cp ${path.resolve(file)} ${this.containerId}:/tmp/code.cpp`);
-      await execPromise(`docker exec ${this.containerId} g++ /tmp/code.cpp -o /tmp/code`);
+      await execPromise(`docker cp "${path.resolve(file)}" "${this.containerId}:/tmp/code.cpp"`);
+      await execPromise(`docker exec ${this.containerId} g++ "/tmp/code.cpp" -o "/tmp/code"`);
     } else {
-      await execPromise(`docker cp ${path.resolve(file)} ${this.containerId}:/tmp/code.py`);
+      await execPromise(`docker cp "${path.resolve(file)}" "${this.containerId}:/tmp/code.py"`);
     }
   }
 
   public async sendCodeText(text: string, language: Language): Promise<void> {
     if (this.containerId === undefined) throw new ContainerNotStartedError();
     if (language === Language.Cpp) {
-      await execWithInput(`docker exec -i ${this.containerId} cp /dev/stdin /tmp/code.cpp`, text);
-      await execPromise(`docker exec ${this.containerId} g++ /tmp/code.cpp -o /tmp/code`);
+      await execWithInput(`docker exec -i ${this.containerId} cp "/dev/stdin" "/tmp/code.cpp"`, text);
+      await execPromise(`docker exec ${this.containerId} g++ "/tmp/code.cpp" -o "/tmp/code"`);
     } else {
-      await execWithInput(`docker exec -i ${this.containerId} cp /dev/stdin /tmp/code.py`, text);
+      await execWithInput(`docker exec -i ${this.containerId} cp "/dev/stdin" "/tmp/code.py"`, text);
     }
     this.language = language;
   }
@@ -77,24 +77,24 @@ export class Runner {
   public async testInputFile(inputFile: string, timeout: number): Promise<Result> {
     if (this.containerId === undefined) throw new ContainerNotStartedError();
     if (this.language === undefined) throw new CodeNotSentError();
-    await execPromise(`docker cp ${path.resolve(inputFile)} ${this.containerId}:/tmp/input.in`);
+    await execPromise(`docker cp "${path.resolve(inputFile)}" "${this.containerId}:/tmp/input.in"`);
     let command: string;
-    if (this.language === Language.Cpp) command = '/tmp/code';
-    else command = 'python /tmp/code.py';
-    const { stdout } = await execPromise(`docker exec ${this.containerId} python /var/runner.py -t ${timeout} ${command}`);
+    if (this.language === Language.Cpp) command = '"/tmp/code"';
+    else command = 'python "/tmp/code.py"';
+    const { stdout } = await execPromise(`docker exec ${this.containerId} python "/var/runner.py" -t ${timeout} ${command}`);
     return JSON.parse(stdout) as Result;
   }
 
   public async saveOutput(outputContainerPath: string, savePath: string): Promise<void> {
     if (this.containerId === undefined) throw new ContainerNotStartedError();
-    await execPromise(`docker cp ${this.containerId}:${outputContainerPath} ${path.resolve(savePath)}`);
+    await execPromise(`docker cp "${this.containerId}:${outputContainerPath}" "${path.resolve(savePath)}"`);
   }
 
   public getOutputAsText(outputContainerPath: string): Promise<string> {
     if (this.containerId === undefined) return Promise.reject(new ContainerNotStartedError());
     return new Promise(((resolve, reject) => {
       const process = cp.spawn(
-        `docker exec ${this.containerId} cat ${outputContainerPath}`,
+        `docker exec ${this.containerId} cat "${outputContainerPath}"`,
         {
           shell: true,
         },
