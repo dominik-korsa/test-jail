@@ -21,7 +21,7 @@
     "build:watch": "tsc -w",
     "test": "mocha -r ts-node/register tests/**.ts",
     "test:cov": "nyc --reporter=lcov mocha -r ts-node/register tests/**.ts",
-    "prepublishOnly": "npm run build && crlf --set=LF dist/*",
+    "prepublishOnly": "npm run build",
     "release": "release-it --only-version",
     "lint": "eslint src tests -c .eslintrc.json",
     "lint:fix": "eslint src tests -c .eslintrc.json --fix"
@@ -60,7 +60,6 @@
     "@typescript-eslint/parser": "^4.6.1",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "crlf": "^1.1.1",
     "eslint": "^7.12.1",
     "eslint-config-airbnb-base": "^14.2.0",
     "eslint-config-airbnb-typescript": "^12.0.0",

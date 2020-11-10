@@ -10,6 +10,7 @@
     "moduleResolution": "node",
     "outDir": "dist",
     "declaration": true,
+    "newLine": "lf",
     "lib": [
       "es2015"
     ],
