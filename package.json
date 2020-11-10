@@ -1,8 +1,16 @@
 {
   "name": "awesome-test-runner",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Safely test console programs in Docker containers",
-  "keywords": ["cli", "testing", "runner", "typescript", "cpp", "python", "docker"],
+  "keywords": [
+    "cli",
+    "testing",
+    "runner",
+    "typescript",
+    "cpp",
+    "python",
+    "docker"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
