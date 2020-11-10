@@ -2,6 +2,9 @@ import path from 'path';
 import eol from 'eol';
 import cp from 'child_process';
 import { execPromise, execWithInput } from './utils';
+import { CodeNotSentError, ContainerNotStartedError, UnknownExtensionError } from './errors';
+
+export * from './errors';
 
 export interface ResultSuccess {
   type: 'success';
@@ -45,12 +48,12 @@ export class Runner {
   }
 
   public async sendCodeFile(file: string): Promise<void> {
-    if (this.containerId === undefined) throw new Error('Container not started');
+    if (this.containerId === undefined) throw new ContainerNotStartedError();
 
     const ext = path.extname(file);
     if (ext === '.cpp') this.language = Language.Cpp;
     else if (ext === '.py') this.language = Language.Python;
-    else throw new Error(`Unknown extension ${ext}`);
+    else throw new UnknownExtensionError(ext);
 
     if (this.language === Language.Cpp) {
       await execPromise(`docker cp ${path.resolve(file)} ${this.containerId}:/tmp/code.cpp`);
@@ -61,7 +64,7 @@ export class Runner {
   }
 
   public async sendCodeText(text: string, language: Language): Promise<void> {
-    if (this.containerId === undefined) throw new Error('Container not started');
+    if (this.containerId === undefined) throw new ContainerNotStartedError();
     if (language === Language.Cpp) {
       await execWithInput(`docker exec -i ${this.containerId} cp /dev/stdin /tmp/code.cpp`, text);
       await execPromise(`docker exec ${this.containerId} g++ /tmp/code.cpp -o /tmp/code`);
@@ -72,8 +75,8 @@ export class Runner {
   }
 
   public async testInputFile(inputFile: string, timeout: number): Promise<Result> {
-    if (this.containerId === undefined) throw new Error('Container not started');
-    if (this.language === undefined) throw new Error('Code not sent');
+    if (this.containerId === undefined) throw new ContainerNotStartedError();
+    if (this.language === undefined) throw new CodeNotSentError();
     try {
       await execPromise(`docker cp ${path.resolve(inputFile)} ${this.containerId}:/tmp/input.in`);
       let command: string;
@@ -90,12 +93,12 @@ export class Runner {
   }
 
   public async saveOutput(outputContainerPath: string, savePath: string): Promise<void> {
-    if (this.containerId === undefined) throw new Error('Container not started');
+    if (this.containerId === undefined) throw new ContainerNotStartedError();
     await execPromise(`docker cp ${this.containerId}:${outputContainerPath} ${path.resolve(savePath)}`);
   }
 
   public getOutputAsText(outputContainerPath: string): Promise<string> {
-    if (this.containerId === undefined) throw new Error('Container not started');
+    if (this.containerId === undefined) return Promise.reject(new ContainerNotStartedError());
     return new Promise(((resolve, reject) => {
       const process = cp.spawn(
         `docker exec ${this.containerId} cat ${outputContainerPath}`,
