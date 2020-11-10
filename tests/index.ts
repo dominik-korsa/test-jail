@@ -144,6 +144,19 @@ describe('Run tests', () => {
     expectOutputEquals(output, await readResFile('expected-output/2.out'));
   });
 
+  it('Get nonexistent output file', async function () {
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
+    this.slow(5000);
+    this.timeout(90000);
+    await expect(runner.getOutputAsText('/tmp/outputs/does-not-exist.out'))
+      .to.eventually.be.rejected;
+    await expect(runner.saveOutput('/tmp/outputs/does-not-exist.out', tempFile('does-not-exist.out')))
+      .to.eventually.be.rejected;
+  });
+
   it('C++ runtime error', async function () {
     if (!runner.isStarted()) {
       this.skip();
