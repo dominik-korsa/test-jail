@@ -71,6 +71,7 @@
     "@typescript-eslint/no-shadow": [
       "error"
     ],
-    "@typescript-eslint/explicit-member-accessibility": ["off"]
+    "@typescript-eslint/explicit-member-accessibility": ["off"],
+    "class-methods-use-this": "warn"
   }
 }

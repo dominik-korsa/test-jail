@@ -1,7 +1,8 @@
-import ansi from 'ansi';
+import ansi from 'ansi-escapes';
+import chalk from 'chalk';
 
 export default class RunProgress {
-  private readonly cursor = ansi(process.stdout);
+  private buffer = '';
 
   private readonly total: number;
 
@@ -11,36 +12,45 @@ export default class RunProgress {
 
   private sent = 0;
 
+  private start: number = Date.now();
+
+  private seconds = 0;
+
+  private readonly updateIntervalId: NodeJS.Timeout;
+
   public constructor(total: number) {
     this.total = total;
-    this.cursor.hide();
-    this.update();
+    this.write(ansi.cursorHide);
+    this.update(false);
+    this.updateIntervalId = setInterval(() => { this.updateTime(); }, 100);
   }
 
-  public update(): void {
-    this.cursor.horizontalAbsolute().eraseLine();
-    const totalChars = 50;
+  private updateTime() {
+    const seconds = Math.floor((Date.now() - this.start) / 1000);
+    if (seconds !== this.seconds) {
+      this.seconds = seconds;
+      this.update();
+    }
+  }
+
+  public update(clear = true): void {
+    if (clear) this.write(ansi.cursorLeft, ansi.eraseLines(3));
+    const totalChars = 60;
     const testChars = totalChars / this.total;
     const doneChars = Math.ceil(testChars * this.done);
     const testedChars = Math.ceil(testChars * this.tested);
     const sentChars = Math.ceil(testChars * this.sent);
     const emptyChars = totalChars - sentChars;
-    this.cursor.cyan();
-    for (let i = 0; i < doneChars; i += 1) this.cursor.write('█');
-    this.cursor.yellow();
-    for (let i = 0; i < testedChars - doneChars; i += 1) this.cursor.write('░');
-    this.cursor.white();
-    for (let i = 0; i < sentChars - testedChars; i += 1) this.cursor.write('░');
-    this.cursor.grey();
-    for (let i = 0; i < emptyChars; i += 1) this.cursor.write('░');
-    this.cursor.write(' ');
-    this.cursor.cyan().write(`${this.done} done`);
-    this.cursor.grey().write(' and ');
-    this.cursor.yellow().write(`${this.tested - this.done} saving`);
-    this.cursor.grey().write(' out of ');
-    this.cursor.white().write(`${this.sent} sent`);
-    this.cursor.grey().write(` and ${this.total} total`);
-    this.cursor.flush();
+    for (let i = 0; i < doneChars; i += 1) this.write(chalk.cyan('█'));
+    for (let i = 0; i < testedChars - doneChars; i += 1) this.write(chalk.yellow('░'));
+    for (let i = 0; i < sentChars - testedChars; i += 1) this.write(chalk.white('░'));
+    for (let i = 0; i < emptyChars; i += 1) this.write(chalk.grey('░'));
+    const saving = this.tested - this.done;
+    this.write(chalk`\n\n{gray {cyan ${this.done} done} and {yellow ${saving} saving} out of {white ${this.sent}} sent and ${this.total} total}`);
+    this.write(` (${Math.floor(this.seconds / 60)} min ${
+      (this.seconds % 60).toLocaleString(undefined, { minimumIntegerDigits: 2 })
+    } sec)`);
+    this.flush();
   }
 
   public increaseDone(): void {
@@ -59,11 +69,18 @@ export default class RunProgress {
   }
 
   public finish(): void {
-    this.cursor.horizontalAbsolute().eraseLine();
-    this.cursor.green();
-    this.cursor.write('√');
-    this.cursor.reset();
-    this.cursor.write(' Testing\n');
-    this.cursor.flush();
+    clearInterval(this.updateIntervalId);
+    this.write(ansi.cursorLeft, ansi.eraseLine);
+    this.write(chalk`{green √} Testing\n`);
+    this.flush();
+  }
+
+  private write(...text: string[]) {
+    this.buffer += text.join('');
+  }
+
+  private flush() {
+    process.stdout.write(this.buffer);
+    this.buffer = '';
   }
 }
