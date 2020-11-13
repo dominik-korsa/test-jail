@@ -512,7 +512,8 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
       const files = await globPromise(argv.pattern, { cwd: input });
       results = await sequential(files.map((file) => async () => {
         runSpinner.text = `Testing ${chalk.cyan(file)}`;
-        const result = await runner.testInputFile(path.resolve(input, file), argv.time);
+        const inputContainerPath = await runner.sendInputFile(path.resolve(input, file));
+        const result = await runner.test(inputContainerPath, argv.time);
         if (result.type === 'success') {
           await runner.saveOutput(
             result.outputContainerPath,
@@ -525,7 +526,8 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
         };
       }));
     } else {
-      const result = await runner.testInputFile(input, argv.time);
+      const inputContainerPath = await runner.sendInputFile(input);
+      const result = await runner.test(inputContainerPath, argv.time);
       if (result.type === 'success') {
         await runner.saveOutput(result.outputContainerPath, output);
       }
@@ -646,7 +648,8 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     if (inputStats.isDirectory()) {
       results = await sequential(matched.map((file) => async (): Promise<PrintableResult> => {
         runSpinner.text = `Testing ${chalk.cyan(file)}`;
-        const result = await runner.testInputFile(path.resolve(input, file), argv.time);
+        const inputContainerPath = await runner.sendInputFile(path.resolve(input, file));
+        const result = await runner.test(inputContainerPath, argv.time);
         if (result.type === 'success') {
           const outputFileResolved = path.resolve(output, replaceExt(file, argv.outputExt));
           return getTestResult(result, file, outputFileResolved, runner);
@@ -657,7 +660,8 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
         };
       }));
     } else {
-      const result = await runner.testInputFile(input, argv.time);
+      const inputContainerPath = await runner.sendInputFile(input);
+      const result = await runner.test(inputContainerPath, argv.time);
       const file = path.basename(argv.input);
       if (result.type === 'success') {
         results = [

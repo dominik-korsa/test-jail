@@ -1,6 +1,8 @@
 import path from 'path';
 import eol from 'eol';
 import cp from 'child_process';
+import _ from 'lodash';
+import slash from 'slash';
 import { execPromise, execWithInput } from './utils';
 import { CodeNotSentError, ContainerNotStartedError, UnknownExtensionError } from './errors';
 
@@ -29,7 +31,7 @@ export enum Language {
   Cpp,
 }
 
-const containerImageName = 'dominikkorsa/runner:1.1.1';
+const containerImageName = 'dominikkorsa/runner:1.2.0';
 
 export class Runner {
   private containerId?: string;
@@ -75,14 +77,27 @@ export class Runner {
     this.language = language;
   }
 
-  public async testInputFile(inputFile: string, timeout: number): Promise<Result> {
+  public async sendInputFile(file: string): Promise<string> {
+    if (this.containerId === undefined) throw new ContainerNotStartedError();
+    const containerPath = slash(path.join(`/tmp/inputs/${Math.floor(Date.now() / 1000)}-${_.random(10000, 99999)}.in`));
+    await execPromise(`docker cp "${path.resolve(file)}" "${this.containerId}:${containerPath}"`);
+    return containerPath;
+  }
+
+  public async sendInputText(text: string): Promise<string> {
+    if (this.containerId === undefined) throw new ContainerNotStartedError();
+    const containerPath = slash(path.join(`/tmp/inputs/${Math.floor(Date.now() / 1000)}-${_.random(10000, 99999)}.in`));
+    await execWithInput(`docker exec -i ${this.containerId} cp "/dev/stdin" "${containerPath}"`, text);
+    return containerPath;
+  }
+
+  public async test(inputContainerPath: string, timeout: number): Promise<Result> {
     if (this.containerId === undefined) throw new ContainerNotStartedError();
     if (this.language === undefined) throw new CodeNotSentError();
-    await execPromise(`docker cp "${path.resolve(inputFile)}" "${this.containerId}:/tmp/input.in"`);
     let command: string;
     if (this.language === Language.Cpp) command = '"/tmp/code"';
     else command = 'python "/tmp/code.py"';
-    const { stdout } = await execPromise(`docker exec ${this.containerId} python "/var/runner.py" -t ${timeout} ${command}`);
+    const { stdout } = await execPromise(`docker exec ${this.containerId} python "/var/runner.py" -t ${timeout} -i ${inputContainerPath} ${command}`);
     return JSON.parse(stdout) as Result;
   }
 

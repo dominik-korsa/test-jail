@@ -9,6 +9,7 @@ import os
 parser = argparse.ArgumentParser()
 parser.add_argument('command', action="extend", nargs="+")
 parser.add_argument('-t, --timeout', required=True, type=float, dest="timeout")
+parser.add_argument('-i, --input', required=True, type=str, dest="input")
 
 args = parser.parse_args()
 
@@ -16,7 +17,7 @@ output_directory = "/tmp/outputs"
 if not os.path.exists(output_directory):
     os.makedirs(output_directory)
 program_output_path = os.path.join(output_directory, str(floor(time())) + "-" + str(uniform(10000, 99999)) + ".out")
-program_input = open('/tmp/input.in', 'r')
+program_input = open(args.input, 'r')
 program_output = open(program_output_path, 'w')
 
 start = time()

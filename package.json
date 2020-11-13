@@ -50,6 +50,7 @@
     "ora": "^5.1.0",
     "promise-sequential": "^1.1.1",
     "replace-ext": "^2.0.0",
+    "slash": "^3.0.0",
     "yargs": "^16.1.0"
   },
   "devDependencies": {
