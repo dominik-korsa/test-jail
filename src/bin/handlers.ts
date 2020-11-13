@@ -180,6 +180,13 @@ function validLineCell(value: string, expOutLine: number, outLine: number) {
 }
 
 function printOutput(result: PResultWrongAnswer, lbl: boolean) {
+  const expectedOutput = eol.split(result.expectedOutput);
+  const output = eol.split(result.output);
+
+  if (expectedOutput.length > 500 || output.length > 500) {
+    return 'Output is too long to show';
+  }
+
   const diffTable = new Table({
     chars: {
       top: '',
@@ -221,8 +228,6 @@ function printOutput(result: PResultWrongAnswer, lbl: boolean) {
     ],
   );
 
-  const expectedOutput = eol.split(result.expectedOutput);
-  const output = eol.split(result.output);
   let chunks: Chunk[];
   if (lbl) {
     chunks = generateLBLChunks(
