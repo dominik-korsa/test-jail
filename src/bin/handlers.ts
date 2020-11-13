@@ -5,7 +5,6 @@ import ora from 'ora';
 import chalk from 'chalk';
 import replaceExt from 'replace-ext';
 import Table from 'cli-table3';
-import sequential from 'promise-sequential';
 import Enquirer from 'enquirer';
 import open from 'open';
 import * as Diff from 'diff';
@@ -15,6 +14,8 @@ import {
   Runner, pullContainerImage, isImagePulled, isDockerAvailable, ResultSuccess,
 } from '../index';
 import { globPromise } from '../utils';
+import Test from './test';
+import RunProgress from './runProgress';
 
 export interface RunArgs {
   url: string;
@@ -507,26 +508,46 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
     startingSpinner.succeed();
 
     let results: PrintableResult[];
-    const runSpinner = ora('Testing').start();
     if (inputStats.isDirectory()) {
       const files = await globPromise(argv.pattern, { cwd: input });
-      results = await sequential(files.map((file) => async () => {
-        runSpinner.text = `Testing ${chalk.cyan(file)}`;
-        const inputContainerPath = await runner.sendInputFile(path.resolve(input, file));
-        const result = await runner.test(inputContainerPath, argv.time);
+      const progress = new RunProgress(files.length);
+      const tests = files
+        .map((file) => new Test(
+          runner,
+          path.resolve(input, file),
+          file,
+        ));
+      tests.reduce(async (prev, test) => {
+        await prev;
+        await test.sendInputFile();
+        progress.increaseSent();
+      }, Promise.resolve());
+      tests.reduce(async (prev, test) => {
+        await prev;
+        await test.waitInputSent;
+        await test.test(argv.time);
+        progress.increaseTested();
+      }, Promise.resolve());
+      results = await Promise.all(tests.map(async (test) => {
+        const result = await test.waitTestCompleted;
         if (result.type === 'success') {
           await runner.saveOutput(
             result.outputContainerPath,
-            path.resolve(output, replaceExt(file, '.out')),
+            path.resolve(output, replaceExt(test.inputFileRelative, '.out')),
           );
         }
+        progress.increaseDone();
         return {
           ...result,
-          file,
+          file: test.inputFileRelative,
         };
       }));
+      progress.finish();
     } else {
+      const sendSpinner = ora('Sending input').start();
       const inputContainerPath = await runner.sendInputFile(input);
+      sendSpinner.succeed();
+      const runSpinner = ora('Testing').start();
       const result = await runner.test(inputContainerPath, argv.time);
       if (result.type === 'success') {
         await runner.saveOutput(result.outputContainerPath, output);
@@ -535,8 +556,8 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
         ...result,
         file: path.basename(argv.input),
       }];
+      runSpinner.succeed();
     }
-    runSpinner.succeed('Testing');
     const stopSpinner = ora('Killing docker container').start();
     await runner.kill();
     stopSpinner.succeed();
@@ -644,36 +665,62 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     startingSpinner.succeed();
 
     let results: PrintableResult[];
-    const runSpinner = ora('Testing').start();
     if (inputStats.isDirectory()) {
-      results = await sequential(matched.map((file) => async (): Promise<PrintableResult> => {
-        runSpinner.text = `Testing ${chalk.cyan(file)}`;
-        const inputContainerPath = await runner.sendInputFile(path.resolve(input, file));
-        const result = await runner.test(inputContainerPath, argv.time);
+      const progress = new RunProgress(matched.length);
+      const tests = matched
+        .map((file) => new Test(
+          runner,
+          path.resolve(input, file),
+          file,
+        ));
+      tests.reduce(async (prev, test) => {
+        await prev;
+        await test.sendInputFile();
+        progress.increaseSent();
+      }, Promise.resolve());
+      tests.reduce(async (prev, test) => {
+        await prev;
+        await test.waitInputSent;
+        await test.test(argv.time);
+        progress.increaseTested();
+      }, Promise.resolve());
+      results = await Promise.all(tests.map(async (test): Promise<PrintableResult> => {
+        const result = await test.waitTestCompleted;
         if (result.type === 'success') {
-          const outputFileResolved = path.resolve(output, replaceExt(file, argv.outputExt));
-          return getTestResult(result, file, outputFileResolved, runner);
+          const outputFileResolved = path.resolve(
+            output,
+            replaceExt(test.inputFileRelative, argv.outputExt),
+          );
+          const pResult = await getTestResult(
+            result,
+            test.inputFileRelative,
+            outputFileResolved,
+            runner,
+          );
+          progress.increaseDone();
+          return pResult;
         }
         return {
           ...result,
-          file,
+          file: test.inputFileRelative,
         };
       }));
+      progress.finish();
     } else {
+      const runSpinner = ora('Testing').start();
       const inputContainerPath = await runner.sendInputFile(input);
       const result = await runner.test(inputContainerPath, argv.time);
       const file = path.basename(argv.input);
       if (result.type === 'success') {
-        results = [
-          await getTestResult(result, file, output, runner)];
+        results = [await getTestResult(result, file, output, runner)];
       } else {
         results = [{
           ...result,
           file,
         }];
       }
+      runSpinner.succeed('Testing');
     }
-    runSpinner.succeed('Testing');
     const stopSpinner = ora('Killing docker container').start();
     await runner.kill();
     stopSpinner.succeed();
