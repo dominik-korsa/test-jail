@@ -14,6 +14,7 @@ import {
   Runner,
   UnknownExtensionError,
 } from '../src';
+import { b64decode, b64encode } from '../src/utils';
 
 use(chaiAsPromised);
 
@@ -75,7 +76,7 @@ describe('Run tests', () => {
     await expect(runner.test('/tmp/inputs/example.in', 30))
       .to.eventually.be.rejectedWith(ContainerNotStartedError);
     expect(runner.isStarted()).to.equal(false);
-    await expect(runner.kill()).to.be.fulfilled;
+    await expect(runner.stop()).to.be.fulfilled;
   });
 
   it('Start runner', async function () {
@@ -246,11 +247,30 @@ describe('Run tests', () => {
     expect(result).property('type').to.equal('timeout');
   });
 
-  it('Kill runner', async function () {
-    if (!runner.isStarted()) return;
+  it('Stop runner', async function () {
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
     this.slow(5000);
-    this.timeout(90000);
-    await runner.kill();
+    this.timeout(60000);
+    await runner.stop();
     expect(runner.isStarted()).to.equal(false);
+  });
+});
+
+describe('Utils tests', () => {
+  it('Base 64 encode', () => {
+    expect(b64encode('This is a test')).to.equal('VGhpcyBpcyBhIHRlc3Q=');
+    expect(b64encode('This text\nis multiline')).to.equal('VGhpcyB0ZXh0CmlzIG11bHRpbGluZQ==');
+    expect(b64encode('{\n  "number": 5,\n  "text": "smth",\n  "array": [1, 2, 3]\n}'))
+      .to.equal('ewogICJudW1iZXIiOiA1LAogICJ0ZXh0IjogInNtdGgiLAogICJhcnJheSI6IFsxLCAyLCAzXQp9');
+  });
+
+  it('Base 64 decode', () => {
+    expect(b64decode('VGhpcyBpcyBhIHRlc3Q=')).to.equal('This is a test');
+    expect(b64decode('VGhpcyB0ZXh0CmlzIG11bHRpbGluZQ==')).to.equal('This text\nis multiline');
+    expect(b64decode('ewogICJudW1iZXIiOiA1LAogICJ0ZXh0IjogInNtdGgiLAogICJhcnJheSI6IFsxLCAyLCAzXQp9'))
+      .to.equal('{\n  "number": 5,\n  "text": "smth",\n  "array": [1, 2, 3]\n}');
   });
 });

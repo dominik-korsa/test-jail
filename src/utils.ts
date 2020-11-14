@@ -21,3 +21,11 @@ export function execWithInput(command: string, input: string): Promise<{
     childProcess.stdin?.end(input);
   });
 }
+
+export function b64encode(data: string): string {
+  return Buffer.from(data, 'utf-8').toString('base64');
+}
+
+export function b64decode(encoded: string): string {
+  return Buffer.from(encoded, 'base64').toString('utf-8');
+}
