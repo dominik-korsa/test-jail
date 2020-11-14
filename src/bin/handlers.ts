@@ -15,7 +15,7 @@ import {
 } from '../index';
 import { globPromise } from '../utils';
 import Test from './test';
-import RunProgress from './runProgress';
+import RunProgress from './run-progress';
 
 export interface RunArgs {
   url: string;
@@ -525,11 +525,11 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
       tests.reduce(async (prev, test) => {
         await prev;
         await test.waitInputSent;
-        await test.test(argv.time);
-        progress.increaseTested();
+        test.test(argv.time);
       }, Promise.resolve());
       results = await Promise.all(tests.map(async (test) => {
         const result = await test.waitTestCompleted;
+        progress.increaseTested();
         if (result.type === 'success') {
           await runner.saveOutput(
             result.outputContainerPath,
@@ -559,11 +559,11 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
       runSpinner.succeed();
     }
     const stopSpinner = ora('Killing docker container').start();
-    await runner.kill();
+    await runner.stop();
     stopSpinner.succeed();
     printResults(results, argv.time, false);
   } catch (error) {
-    await runner.kill();
+    await runner.stop();
     exitWithError(error.message);
   }
 }
@@ -681,11 +681,11 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
       tests.reduce(async (prev, test) => {
         await prev;
         await test.waitInputSent;
-        await test.test(argv.time);
-        progress.increaseTested();
+        test.test(argv.time);
       }, Promise.resolve());
       results = await Promise.all(tests.map(async (test): Promise<PrintableResult> => {
         const result = await test.waitTestCompleted;
+        progress.increaseTested();
         if (result.type === 'success') {
           const outputFileResolved = path.resolve(
             output,
@@ -721,12 +721,12 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
       }
       runSpinner.succeed('Testing');
     }
-    const stopSpinner = ora('Killing docker container').start();
-    await runner.kill();
+    const stopSpinner = ora('Stopping docker container').start();
+    await runner.stop();
     stopSpinner.succeed();
     printResults(results, argv.time, argv.lineByLine);
   } catch (error) {
-    await runner.kill();
+    await runner.stop();
     exitWithError(error.message);
   }
 
