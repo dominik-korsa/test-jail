@@ -1,6 +1,7 @@
 import util from 'util';
 import cp from 'child_process';
 import glob from 'glob';
+import tar from 'tar-stream';
 
 export const execPromise = util.promisify(cp.exec);
 
@@ -28,4 +29,15 @@ export function b64encode(data: string): string {
 
 export function b64decode(encoded: string): string {
   return Buffer.from(encoded, 'base64').toString('utf-8');
+}
+
+export async function packTar(headers: tar.Headers, data: string | Buffer): Promise<tar.Pack> {
+  const pack = tar.pack();
+  await new Promise((resolve, reject) => {
+    pack.entry(headers, data, ((err) => {
+      if (err) reject(err); else resolve();
+    }));
+  });
+  pack.finalize();
+  return pack;
 }

@@ -7,9 +7,9 @@ import readline from 'readline';
 import Docker from 'dockerode';
 import Stream from 'stream';
 import {
- b64decode, b64encode, execPromise, execWithInput,
+  b64decode, b64encode, execPromise, packTar,
 } from './utils';
-import { CodeNotSentError, ContainerNotStartedError, UnknownExtensionError } from './errors';
+import { CodeNotSentError, ContainerNotStartedError } from './errors';
 
 export * from './errors';
 
@@ -114,44 +114,34 @@ export class Runner {
     await promise;
   }
 
-  public async sendCodeFile(file: string): Promise<void> {
+  public async sendCode(data: string | Buffer, language: Language): Promise<void> {
     if (this.instance === undefined) throw new ContainerNotStartedError();
-
-    const ext = path.extname(file);
-    if (ext === '.cpp') this.language = Language.Cpp;
-    else if (ext === '.py') this.language = Language.Python;
-    else throw new UnknownExtensionError(ext);
-
-    if (this.language === Language.Cpp) {
-      await execPromise(`docker cp "${path.resolve(file)}" "${this.instance.container.id}:/tmp/code.cpp"`);
-      await execPromise(`docker exec ${this.instance.container.id} g++ "/tmp/code.cpp" -o "/tmp/code"`);
-    } else {
-      await execPromise(`docker cp "${path.resolve(file)}" "${this.instance.container.id}:/tmp/code.py"`);
-    }
-  }
-
-  public async sendCodeText(text: string, language: Language): Promise<void> {
-    if (this.instance === undefined) throw new ContainerNotStartedError();
+    let containerFilename: string;
+    if (language === Language.Cpp) containerFilename = 'code.cpp';
+    else containerFilename = 'code.py';
+    const pack = await packTar({
+      name: containerFilename,
+    }, data);
+    await this.instance.container.putArchive(pack, {
+      path: '/tmp',
+    });
     if (language === Language.Cpp) {
-      await execWithInput(`docker exec -i ${this.instance.container.id} cp "/dev/stdin" "/tmp/code.cpp"`, text);
       await execPromise(`docker exec ${this.instance.container.id} g++ "/tmp/code.cpp" -o "/tmp/code"`);
-    } else {
-      await execWithInput(`docker exec -i ${this.instance.container.id} cp "/dev/stdin" "/tmp/code.py"`, text);
     }
     this.language = language;
   }
 
-  public async sendInputFile(file: string): Promise<string> {
+  public async sendInput(data: string | Buffer): Promise<string> {
     if (this.instance === undefined) throw new ContainerNotStartedError();
-    const containerPath = slash(path.join(`/tmp/inputs/${Math.floor(Date.now() / 1000)}-${_.random(10000, 99999)}.in`));
-    await execPromise(`docker cp "${path.resolve(file)}" "${this.instance.container.id}:${containerPath}"`);
-    return containerPath;
-  }
-
-  public async sendInputText(text: string): Promise<string> {
-    if (this.instance === undefined) throw new ContainerNotStartedError();
-    const containerPath = slash(path.join(`/tmp/inputs/${Math.floor(Date.now() / 1000)}-${_.random(10000, 99999)}.in`));
-    await execWithInput(`docker exec -i ${this.instance.container.id} cp "/dev/stdin" "${containerPath}"`, text);
+    const containerDir = '/tmp/inputs';
+    const containerFilename = `${Math.floor(Date.now() / 1000)}-${_.random(10000, 99999)}.in`;
+    const containerPath = slash(path.join(containerDir, containerFilename));
+    const pack = await packTar({
+      name: containerFilename,
+    }, data);
+    await this.instance.container.putArchive(pack, {
+      path: containerDir,
+    });
     return containerPath;
   }
 
