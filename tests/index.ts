@@ -123,8 +123,8 @@ describe('Run tests', () => {
     await runner.sendCodeFile(resFile('code/1-valid.cpp'));
   });
 
-  let input1ContainerPath: string | undefined;
-  let input2ContainerPath: string | undefined;
+  let in1ContainerPath: string | undefined;
+  let in2ContainerPath: string | undefined;
 
   it('Send input 1 file', async function () {
     if (!runner.isStarted()) {
@@ -133,17 +133,17 @@ describe('Run tests', () => {
     }
     this.slow(5000);
     this.timeout(90000);
-    input1ContainerPath = await runner.sendInputFile(resFile('input/1.in'));
+    in1ContainerPath = await runner.sendInputFile(resFile('input/1.in'));
   });
 
   it('Report success, save output to file', async function () {
-    if (!runner.isStarted() || input1ContainerPath === undefined) {
+    if (!runner.isStarted() || in1ContainerPath === undefined) {
       this.skip();
       return;
     }
     this.slow(5000);
     this.timeout(90000);
-    const result = await runner.test(input1ContainerPath, 30) as ResultSuccess;
+    const result = await runner.test(in1ContainerPath, 30) as ResultSuccess;
     expect(result).property('type').to.equal('success');
     await runner.saveOutput(result.outputContainerPath, tempFile('test.out'));
     expectOutputEquals(await readTempFile('test.out'), await readResFile('expected-output/1.out'));
@@ -156,17 +156,17 @@ describe('Run tests', () => {
     }
     this.slow(5000);
     this.timeout(90000);
-    input2ContainerPath = await runner.sendInputText(await readResFile('input/2.in'));
+    in2ContainerPath = await runner.sendInputText(await readResFile('input/2.in'));
   });
 
   it('Report success on second test, get output as text', async function () {
-    if (!runner.isStarted() || input2ContainerPath === undefined) {
+    if (!runner.isStarted() || in2ContainerPath === undefined) {
       this.skip();
       return;
     }
     this.slow(5000);
     this.timeout(90000);
-    const result = await runner.test(input2ContainerPath, 30) as ResultSuccess;
+    const result = await runner.test(in2ContainerPath, 30) as ResultSuccess;
     expect(result).property('type').to.equal('success');
     const output = await runner.getOutputAsText(result.outputContainerPath);
     expectOutputEquals(output, await readResFile('expected-output/2.out'));
@@ -186,19 +186,19 @@ describe('Run tests', () => {
   });
 
   it('C++ runtime error', async function () {
-    if (!runner.isStarted() || input1ContainerPath === undefined) {
+    if (!runner.isStarted() || in1ContainerPath === undefined) {
       this.skip();
       return;
     }
     this.slow(10000);
     this.timeout(90000);
     await runner.sendCodeFile(resFile('code/1-error.cpp'));
-    const result = await runner.test(input1ContainerPath, 30);
+    const result = await runner.test(in1ContainerPath, 30);
     expect(result).property('type').to.equal('runtime-error');
   });
 
   it('C++ timeout - code as text', async function () {
-    if (!runner.isStarted() || input1ContainerPath === undefined) {
+    if (!runner.isStarted() || in1ContainerPath === undefined) {
       this.skip();
       return;
     }
@@ -206,12 +206,12 @@ describe('Run tests', () => {
     this.timeout(90000);
     const code = await readResFile('code/1-timeout.cpp');
     await runner.sendCodeText(code, Language.Cpp);
-    const result = await runner.test(input1ContainerPath, 5);
+    const result = await runner.test(in1ContainerPath, 5);
     expect(result).property('type').to.equal('timeout');
   });
 
   it('Python success - code as text', async function () {
-    if (!runner.isStarted() || input2ContainerPath === undefined) {
+    if (!runner.isStarted() || in2ContainerPath === undefined) {
       this.skip();
       return;
     }
@@ -219,32 +219,56 @@ describe('Run tests', () => {
     this.timeout(90000);
     const code = await readResFile('code/1-valid.py');
     await runner.sendCodeText(code, Language.Python);
-    const result = await runner.test(input2ContainerPath, 5);
+    const result = await runner.test(in2ContainerPath, 5);
     expect(result).property('type').to.equal('success');
   });
 
   it('Python runtime error', async function () {
-    if (!runner.isStarted() || input2ContainerPath === undefined) {
+    if (!runner.isStarted() || in2ContainerPath === undefined) {
       this.skip();
       return;
     }
     this.slow(10000);
     this.timeout(90000);
     await runner.sendCodeFile(resFile('code/1-error.py'));
-    const result = await runner.test(input2ContainerPath, 30);
+    const result = await runner.test(in2ContainerPath, 30);
     expect(result).property('type').to.equal('runtime-error');
   });
 
   it('Python timeout', async function () {
-    if (!runner.isStarted() || input2ContainerPath === undefined) {
+    if (!runner.isStarted() || in2ContainerPath === undefined) {
       this.skip();
       return;
     }
     this.slow(20000);
     this.timeout(90000);
     await runner.sendCodeFile(resFile('code/1-timeout.py'));
-    const result = await runner.test(input2ContainerPath, 5);
+    const result = await runner.test(in2ContainerPath, 5);
     expect(result).property('type').to.equal('timeout');
+  });
+
+  it('Queue tests', async function () {
+    if (!runner.isStarted() || in1ContainerPath === undefined || in2ContainerPath === undefined) {
+      this.skip();
+      return;
+    }
+    this.slow(5000);
+    this.timeout(90000);
+    await runner.sendCodeFile(resFile('code/1-valid.cpp'));
+    const test1 = runner.test(in1ContainerPath, 30) as Promise<ResultSuccess>;
+    const test2 = runner.test(in2ContainerPath, 30) as Promise<ResultSuccess>;
+    const result1 = await test1;
+    const result2 = await test2;
+    expect(result1).property('type').to.equal('success');
+    expect(result2).property('type').to.equal('success');
+    expectOutputEquals(
+      await runner.getOutputAsText(result1.outputContainerPath),
+      await readResFile('expected-output/1.out'),
+    );
+    expectOutputEquals(
+      await runner.getOutputAsText(result2.outputContainerPath),
+      await readResFile('expected-output/2.out'),
+    );
   });
 
   it('Stop runner', async function () {
