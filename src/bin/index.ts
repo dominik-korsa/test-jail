@@ -5,8 +5,8 @@ import {
 } from './handlers';
 
 yargs
-  .scriptName('awesome-test-runner')
-  .usage('$0 <cmd> [args]')
+  .scriptName('test-jail')
+  .usage('$0 <command> [arguments]')
   .command<RunArgs>(
     'run <code>',
     '',

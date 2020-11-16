@@ -1,5 +1,5 @@
 {
-  "name": "awesome-test-runner",
+  "name": "test-jail",
   "version": "1.7.0",
   "description": "Safely test console programs in Docker containers",
   "keywords": [
@@ -9,12 +9,15 @@
     "typescript",
     "cpp",
     "python",
-    "docker"
+    "docker",
+    "jail",
+    "vm"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "awesome-test-runner": "dist/bin/index.js"
+    "test-jail": "dist/bin/index.js",
+    "testjail": "dist/bin/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -27,7 +30,7 @@
     "lint:fix": "eslint src tests -c .eslintrc.json --fix"
   },
   "author": "Dominik Korsa <dominik.korsa@gmail.com>",
-  "repository": "https://github.com/dominik-korsa/awesome-test-runner",
+  "repository": "https://github.com/dominik-korsa/test-jail",
   "license": "MIT",
   "dependencies": {
     "@types/diff": "^4.0.2",
