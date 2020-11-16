@@ -9,22 +9,6 @@ export const globPromise = util.promisify(glob);
 
 export const sleep = util.promisify(setTimeout);
 
-export function execWithInput(command: string, input: string): Promise<{
-  stdout: string;
-  stderr: string;
-}> {
-  return new Promise((resolve, reject) => {
-    const childProcess = cp.exec(
-      command,
-      async (error, stdout, stderr) => {
-        if (error) reject(error);
-        else resolve({ stdout, stderr });
-      },
-    );
-    childProcess.stdin?.end(input);
-  });
-}
-
 export function b64encode(data: string): string {
   return Buffer.from(data, 'utf-8').toString('base64');
 }
@@ -42,4 +26,25 @@ export async function packTar(headers: tar.Headers, data: string | Buffer): Prom
   });
   pack.finalize();
   return pack;
+}
+
+export async function extractTar(pack: NodeJS.ReadableStream, name: string): Promise<Buffer> {
+  const extract = tar.extract({
+
+  });
+  let chunks: Buffer[] | null = null;
+  await new Promise((resolve) => {
+    extract.on('entry', ((headers, stream, next) => {
+      if (headers.name === name) {
+        chunks = [];
+        stream.on('data', (chunk: Buffer) => chunks?.push(chunk));
+      }
+      stream.once('end', () => next());
+      stream.resume();
+    }));
+    extract.once('finish', () => resolve());
+    pack.pipe(extract);
+  });
+  if (chunks === null) throw new Error('Specified file not found in tar archive');
+  return Buffer.concat(chunks);
 }

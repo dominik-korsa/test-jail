@@ -18,7 +18,6 @@ import { b64decode, b64encode } from '../src/utils';
 use(chaiAsPromised);
 
 const res = path.resolve(__dirname, './resources');
-const temp = path.resolve(__dirname, './temp');
 
 function resFile(file: string) {
   return path.resolve(res, file);
@@ -32,24 +31,12 @@ function resFileBuffer(file: string): Promise<Buffer> {
   return fse.readFile(resFile(file));
 }
 
-function tempFile(file: string): string {
-  return path.resolve(temp, file);
-}
-
-function readTempFile(file: string): Promise<string> {
-  return fse.readFile(tempFile(file), 'utf-8');
-}
-
 function expectOutputEquals(out1: string, out2: string) {
   expect(eol.lf(out1).trimEnd()).to.equal(eol.lf(out2).trimEnd());
 }
 
 describe('Run tests', () => {
   const runner = new Runner();
-
-  before(() => {
-    fse.emptyDir(temp);
-  });
 
   it('Test Docker available', async () => {
     expect(await isDockerAvailable()).to.equal(true);
@@ -66,9 +53,7 @@ describe('Run tests', () => {
     expect(runner.isStarted()).to.equal(false);
     await expect(runner.sendCode(await resFileBuffer('code/1-valid.cpp'), Language.Cpp))
       .to.eventually.be.rejectedWith(ContainerNotStartedError);
-    await expect(runner.getOutputAsText('/tmp/outputs/example.out'))
-      .to.eventually.be.rejectedWith(ContainerNotStartedError);
-    await expect(runner.saveOutput('/tmp/outputs/example.out', tempFile('not-started-output.out')))
+    await expect(runner.getOutput('/tmp/outputs/example.out'))
       .to.eventually.be.rejectedWith(ContainerNotStartedError);
     await expect(runner.sendInput('1 2 3\n4 5 6'))
       .to.eventually.be.rejectedWith(ContainerNotStartedError);
@@ -126,7 +111,7 @@ describe('Run tests', () => {
     in1ContainerPath = await runner.sendInput(await resFileBuffer('input/1.in'));
   });
 
-  it('Report success, save output to file', async function () {
+  it('Report success, get output', async function () {
     if (!runner.isStarted() || in1ContainerPath === undefined) {
       this.skip();
       return;
@@ -135,8 +120,8 @@ describe('Run tests', () => {
     this.timeout(90000);
     const result = await runner.test(in1ContainerPath, 30) as ResultSuccess;
     expect(result).property('type').to.equal('success');
-    await runner.saveOutput(result.outputContainerPath, tempFile('test.out'));
-    expectOutputEquals(await readTempFile('test.out'), await readResFile('expected-output/1.out'));
+    const output = await runner.getOutput(result.outputContainerPath);
+    expectOutputEquals(output.toString('utf-8'), await readResFile('expected-output/1.out'));
   });
 
   it('Send input 2 as string', async function () {
@@ -158,8 +143,8 @@ describe('Run tests', () => {
     this.timeout(90000);
     const result = await runner.test(in2ContainerPath, 30) as ResultSuccess;
     expect(result).property('type').to.equal('success');
-    const output = await runner.getOutputAsText(result.outputContainerPath);
-    expectOutputEquals(output, await readResFile('expected-output/2.out'));
+    const output = await runner.getOutput(result.outputContainerPath);
+    expectOutputEquals(output.toString('utf-8'), await readResFile('expected-output/2.out'));
   });
 
   it('Get nonexistent output file', async function () {
@@ -169,9 +154,7 @@ describe('Run tests', () => {
     }
     this.slow(5000);
     this.timeout(90000);
-    await expect(runner.getOutputAsText('/tmp/outputs/does-not-exist.out'))
-      .to.eventually.be.rejected;
-    await expect(runner.saveOutput('/tmp/outputs/does-not-exist.out', tempFile('does-not-exist.out')))
+    await expect(runner.getOutput('/tmp/outputs/does-not-exist.out'))
       .to.eventually.be.rejected;
   });
 
@@ -251,12 +234,14 @@ describe('Run tests', () => {
     const result2 = await test2;
     expect(result1).property('type').to.equal('success');
     expect(result2).property('type').to.equal('success');
+    const output1 = await runner.getOutput(result1.outputContainerPath);
+    const output2 = await runner.getOutput(result2.outputContainerPath);
     expectOutputEquals(
-      await runner.getOutputAsText(result1.outputContainerPath),
+      output1.toString('utf-8'),
       await readResFile('expected-output/1.out'),
     );
     expectOutputEquals(
-      await runner.getOutputAsText(result2.outputContainerPath),
+      output2.toString('utf-8'),
       await readResFile('expected-output/2.out'),
     );
   });

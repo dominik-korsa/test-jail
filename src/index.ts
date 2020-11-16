@@ -1,13 +1,12 @@
 import path from 'path';
 import eol from 'eol';
-import cp from 'child_process';
 import _ from 'lodash';
 import slash from 'slash';
 import readline from 'readline';
 import Docker from 'dockerode';
 import Stream from 'stream';
 import {
-  b64decode, b64encode, execPromise, packTar, sleep,
+  b64decode, b64encode, execPromise, extractTar, packTar, sleep,
 } from './utils';
 import { CodeNotSentError, ContainerNotStartedError } from './errors';
 
@@ -166,33 +165,12 @@ export class Runner {
     });
   }
 
-  public async saveOutput(outputContainerPath: string, savePath: string): Promise<void> {
+  public async getOutput(outputContainerPath: string): Promise<Buffer> {
     if (this.instance === undefined) throw new ContainerNotStartedError();
-    await execPromise(`docker cp "${this.instance.container.id}:${outputContainerPath}" "${path.resolve(savePath)}"`);
-  }
-
-  public getOutputAsText(outputContainerPath: string): Promise<string> {
-    return new Promise(((resolve, reject) => {
-      if (this.instance === undefined) {
-        reject(new ContainerNotStartedError());
-        return;
-      }
-      const process = cp.spawn(
-        `docker exec ${this.instance.container.id} cat "${outputContainerPath}"`,
-        {
-          shell: true,
-        },
-      );
-      let text = '';
-      process.stdout.on('data', ((chunk) => {
-        text += chunk;
-      }));
-      process.on('close', (code) => {
-        if (code !== 0) reject(new Error(`Process exited with code ${code}`));
-        else resolve(text);
-      });
-      process.on('error', reject);
-    }));
+    const pack = await this.instance.container.getArchive({
+      path: outputContainerPath,
+    });
+    return extractTar(pack, path.basename(outputContainerPath));
   }
 
   public isStarted(): boolean {
