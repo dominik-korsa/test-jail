@@ -7,7 +7,7 @@ import readline from 'readline';
 import Docker from 'dockerode';
 import Stream from 'stream';
 import {
-  b64decode, b64encode, execPromise, packTar,
+  b64decode, b64encode, execPromise, packTar, sleep,
 } from './utils';
 import { CodeNotSentError, ContainerNotStartedError } from './errors';
 
@@ -125,9 +125,7 @@ export class Runner {
     await this.instance.container.putArchive(pack, {
       path: '/tmp',
     });
-    if (language === Language.Cpp) {
-      await execPromise(`docker exec ${this.instance.container.id} g++ "/tmp/code.cpp" -o "/tmp/code"`);
-    }
+    if (language === Language.Cpp) await this.execCommand(['g++', '/tmp/code.cpp', '-o', '/tmp/code']);
     this.language = language;
   }
 
@@ -199,6 +197,20 @@ export class Runner {
 
   public isStarted(): boolean {
     return this.instance !== undefined;
+  }
+
+  private async execCommand(cmd: string[]) {
+    if (this.instance === undefined) throw new ContainerNotStartedError();
+    const exec = await this.instance.container.exec({
+      Cmd: cmd,
+    });
+    await exec.start({});
+    let info: Docker.ExecInspectInfo;
+    do {
+      await sleep(500);
+      info = await exec.inspect();
+    } while (info.ExitCode === null);
+    if (info.ExitCode !== 0) throw new Error(`Exec command exited with code ${info.ExitCode}`);
   }
 }
 

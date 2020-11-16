@@ -72,6 +72,7 @@
       "error"
     ],
     "@typescript-eslint/explicit-member-accessibility": ["off"],
-    "class-methods-use-this": "warn"
+    "class-methods-use-this": "warn",
+    "no-await-in-loop": "off"
   }
 }

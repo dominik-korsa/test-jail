@@ -7,6 +7,8 @@ export const execPromise = util.promisify(cp.exec);
 
 export const globPromise = util.promisify(glob);
 
+export const sleep = util.promisify(setTimeout);
+
 export function execWithInput(command: string, input: string): Promise<{
   stdout: string;
   stderr: string;
