@@ -21,7 +21,7 @@ for line in sys.stdin:
     output_directory = "/tmp/outputs"
     if not os.path.exists(output_directory):
       os.makedirs(output_directory)
-    program_output_path = os.path.join(output_directory, str(floor(time())) + "-" + str(uniform(10000, 99999)) + ".out")
+    program_output_path = os.path.join(output_directory, str(floor(time())) + "-" + str(floor(uniform(10000, 99999))) + ".out")
     program_input = open(request["input"], 'r')
     program_output = open(program_output_path, 'w')
 
@@ -34,6 +34,8 @@ for line in sys.stdin:
     )
     _, err = run_process.communicate(timeout=request["timeout"])
     end = time()
+    program_output.close()
+    program_input.close()
     if (run_process.returncode != 0):
       print(b64encode(json.dumps({
         "type": "runtime-error",

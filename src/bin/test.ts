@@ -1,3 +1,4 @@
+import fse from 'fs-extra';
 import { Result, Runner } from '../index';
 
 export default class Test {
@@ -36,7 +37,8 @@ export default class Test {
   }
 
   public sendInputFile(): Promise<void> {
-    this.runner.sendInputFile(this.inputFile)
+    fse.readFile(this.inputFile)
+      .then((input: Buffer) => this.runner.sendInput(input))
       .then((inputContainerPath) => {
         this.inputContainerPath = inputContainerPath;
         this.inputSentFunctions.resolve();
@@ -56,5 +58,15 @@ export default class Test {
         .catch(this.waitTestCompletedFunctions.reject);
     }
     return this.waitTestCompleted;
+  }
+
+  public async saveOutput(outputFile: string): Promise<void> {
+    const result = await this.waitTestCompleted;
+    if (result.type !== 'success') throw new Error('Result type is not success');
+    const outputBuffer = await this.runner.getOutput(result.outputContainerPath);
+    await fse.writeFile(
+      outputFile,
+      outputBuffer,
+    );
   }
 }

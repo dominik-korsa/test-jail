@@ -2,6 +2,7 @@ import util from 'util';
 import cp from 'child_process';
 import glob from 'glob';
 import tar from 'tar-stream';
+import Stream from 'stream';
 
 export const execPromise = util.promisify(cp.exec);
 
@@ -17,21 +18,17 @@ export function b64decode(encoded: string): string {
   return Buffer.from(encoded, 'base64').toString('utf-8');
 }
 
-export async function packTar(headers: tar.Headers, data: string | Buffer): Promise<tar.Pack> {
+export function packTar(headers: tar.Headers, data: string | Buffer): Stream.Readable {
   const pack = tar.pack();
-  await new Promise((resolve, reject) => {
-    pack.entry(headers, data, ((err) => {
-      if (err) reject(err); else resolve();
-    }));
-  });
-  pack.finalize();
+  pack.entry(headers, data, ((err) => {
+    if (err) throw err;
+    pack.finalize();
+  }));
   return pack;
 }
 
 export async function extractTar(pack: NodeJS.ReadableStream, name: string): Promise<Buffer> {
-  const extract = tar.extract({
-
-  });
+  const extract = tar.extract();
   let chunks: Buffer[] | null = null;
   await new Promise((resolve) => {
     extract.on('entry', ((headers, stream, next) => {

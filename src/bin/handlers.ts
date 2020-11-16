@@ -504,7 +504,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   const runner = new Runner();
   try {
     await runner.start();
-    await runner.sendCodeFile(code);
+    await runner.sendCode(await fse.readFile(code), path.extname(code));
     startingSpinner.succeed();
 
     let results: PrintableResult[];
@@ -531,10 +531,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
         const result = await test.waitTestCompleted;
         progress.increaseTested();
         if (result.type === 'success') {
-          await runner.saveOutput(
-            result.outputContainerPath,
-            path.resolve(output, replaceExt(test.inputFileRelative, '.out')),
-          );
+          await test.saveOutput(path.resolve(output, replaceExt(test.inputFileRelative, '.out')));
         }
         progress.increaseDone();
         return {
@@ -545,12 +542,12 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
       progress.finish();
     } else {
       const sendSpinner = ora('Sending input').start();
-      const inputContainerPath = await runner.sendInputFile(input);
+      const inputContainerPath = await runner.sendInput(await fse.readFile(input));
       sendSpinner.succeed();
       const runSpinner = ora('Testing').start();
       const result = await runner.test(inputContainerPath, argv.time);
       if (result.type === 'success') {
-        await runner.saveOutput(result.outputContainerPath, output);
+        await fse.writeFile(output, await runner.getOutput(result.outputContainerPath));
       }
       results = [{
         ...result,
@@ -566,6 +563,8 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
     await runner.stop();
     exitWithError(error.message);
   }
+
+  process.exit(0);
 }
 
 export interface TestArgs {
@@ -586,7 +585,8 @@ async function getTestResult(
   runner: Runner,
 ): Promise<PResultSuccess | PResultWrongAnswer> {
   const expectedOutput = eol.lf(await fse.readFile(outputFile, 'utf-8')).trimEnd();
-  const output = eol.lf(await runner.getOutputAsText(result.outputContainerPath)).trimEnd();
+  const outputBuff = await runner.getOutput(result.outputContainerPath);
+  const output = eol.lf(outputBuff.toString('utf-8')).trimEnd();
   if (expectedOutput !== output) {
     return {
       type: 'wrong-answer',
@@ -607,6 +607,9 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
   const code = path.resolve(process.cwd(), argv.code);
   const input = path.resolve(process.cwd(), argv.input);
   const output = path.resolve(process.cwd(), argv.output);
+
+  await testDockerAvailable();
+  await testCodeExists(code);
 
   let inputStats: fse.Stats;
   let outputStats: fse.Stats;
@@ -661,7 +664,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
   const runner = new Runner();
   try {
     await runner.start();
-    await runner.sendCodeFile(code);
+    await runner.sendCode(await fse.readFile(code), path.extname(code));
     startingSpinner.succeed();
 
     let results: PrintableResult[];
@@ -700,6 +703,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
           progress.increaseDone();
           return pResult;
         }
+        progress.increaseDone();
         return {
           ...result,
           file: test.inputFileRelative,
@@ -708,7 +712,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
       progress.finish();
     } else {
       const runSpinner = ora('Testing').start();
-      const inputContainerPath = await runner.sendInputFile(input);
+      const inputContainerPath = await runner.sendInput(await fse.readFile(input));
       const result = await runner.test(inputContainerPath, argv.time);
       const file = path.basename(argv.input);
       if (result.type === 'success') {
@@ -730,6 +734,5 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     exitWithError(error.message);
   }
 
-  await testDockerAvailable();
-  await testCodeExists(code);
+  process.exit(0);
 }

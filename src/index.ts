@@ -8,7 +8,7 @@ import Stream from 'stream';
 import {
   b64decode, b64encode, execPromise, extractTar, packTar, sleep,
 } from './utils';
-import { CodeNotSentError, ContainerNotStartedError } from './errors';
+import { CodeNotSentError, ContainerNotStartedError, UnknownExtensionError } from './errors';
 
 export * from './errors';
 
@@ -30,12 +30,9 @@ export interface ResultTimeoutError {
 
 export type Result = ResultSuccess | ResultRuntimeError | ResultTimeoutError;
 
-export enum Language {
-  Python,
-  Cpp,
-}
+export type Language = '.cpp' | '.py';
 
-const containerImageName = 'dominikkorsa/runner:2.1.0';
+const containerImageName = 'dominikkorsa/runner:2.1.1';
 
 export class Runner {
   private docker: Docker;
@@ -46,7 +43,7 @@ export class Runner {
     stream: NodeJS.ReadWriteStream;
   };
 
-  private language?: Language;
+  private extension?: Language;
 
   public constructor(dockerOptions?: Docker.DockerOptions) {
     this.docker = new Docker(dockerOptions);
@@ -103,7 +100,7 @@ export class Runner {
     this.exitHandlers.forEach((handler) => handler());
     this.exitHandlers = [];
     this.instance = undefined;
-    this.language = undefined;
+    this.extension = undefined;
   }
 
   public async stop(): Promise<void> {
@@ -113,19 +110,20 @@ export class Runner {
     await promise;
   }
 
-  public async sendCode(data: string | Buffer, language: Language): Promise<void> {
+  public async sendCode(data: string | Buffer, extension: string): Promise<void> {
     if (this.instance === undefined) throw new ContainerNotStartedError();
     let containerFilename: string;
-    if (language === Language.Cpp) containerFilename = 'code.cpp';
-    else containerFilename = 'code.py';
-    const pack = await packTar({
+    if (extension === '.cpp') containerFilename = 'code.cpp';
+    else if (extension === '.py') containerFilename = 'code.py';
+    else throw new UnknownExtensionError(extension);
+    const pack = packTar({
       name: containerFilename,
     }, data);
     await this.instance.container.putArchive(pack, {
       path: '/tmp',
     });
-    if (language === Language.Cpp) await this.execCommand(['g++', '/tmp/code.cpp', '-o', '/tmp/code']);
-    this.language = language;
+    if (extension === '.cpp') await this.execCommand(['g++', '/tmp/code.cpp', '-o', '/tmp/code']);
+    this.extension = extension;
   }
 
   public async sendInput(data: string | Buffer): Promise<string> {
@@ -133,9 +131,10 @@ export class Runner {
     const containerDir = '/tmp/inputs';
     const containerFilename = `${Math.floor(Date.now() / 1000)}-${_.random(10000, 99999)}.in`;
     const containerPath = slash(path.join(containerDir, containerFilename));
-    const pack = await packTar({
-      name: containerFilename,
-    }, data);
+    const pack = packTar({
+        name: containerFilename,
+        type: 'file',
+      }, data);
     await this.instance.container.putArchive(pack, {
       path: containerDir,
     });
@@ -148,12 +147,12 @@ export class Runner {
         reject(new ContainerNotStartedError());
         return;
       }
-      if (this.language === undefined) {
+      if (this.extension === undefined) {
         reject(new CodeNotSentError());
         return;
       }
       let command: string;
-      if (this.language === Language.Cpp) command = '"/tmp/code"';
+      if (this.extension === '.cpp') command = '"/tmp/code"';
       else command = 'python "/tmp/code.py"';
       const request = {
         input: inputContainerPath,
