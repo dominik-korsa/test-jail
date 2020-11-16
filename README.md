@@ -1,4 +1,6 @@
-# Awesome test runner
+### This package has been renamed to `test-jail`. Install it here: [test-jail](https://www.npmjs.com/package/test-jail)
+
+# ~~Awesome test runner~~ -> Renamed to [Test jail](https://github.com/dominik-korsa/test-jail)
 Run C++ and Python programs against input files in a Docker container and save the output to files.
 
 ![npm](https://img.shields.io/npm/v/awesome-test-runner?style=flat-square)

@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 import yargs from 'yargs';
+import chalk from 'chalk';
 import {
  RunArgs, runHandler, TestArgs, testHandler,
 } from './handlers';
+
+console.log(chalk`{yellowBright {bold WARNING:} this package has been renamed to {cyan test-jail}!}\n`);
 
 yargs
   .scriptName('awesome-test-runner')

@@ -1,7 +1,7 @@
 {
   "name": "awesome-test-runner",
-  "version": "1.7.0",
-  "description": "Safely test console programs in Docker containers",
+  "version": "1.7.1",
+  "description": "Renamed to test-jail",
   "keywords": [
     "cli",
     "testing",
