@@ -1,5 +1,5 @@
 # Test jail
-Run C++ and Python programs against input files in a Docker container and save the output to files.
+Run C++ and Python programs against input files in a Docker container and save the output to files or compare against valid output.
 
 ![npm](https://img.shields.io/npm/v/test-jail?style=flat-square)
 ![Codecov](https://img.shields.io/codecov/c/github/dominik-korsa/test-jail?style=flat-square&token=QIRETKDW7L)
@@ -13,6 +13,21 @@ You can verify Docker installation using
 ```shell script
 docker -v
 ```
+
+## API Features
+- Simple, promise based API
+- Buffer support
+- Runs code in a Docker container, preventing local file and process access 
+- Uses Docker API (via dockerode)
+- Integrated test queue
+- Tested using Mocha
+- Can run **C++** or **Python** programs (feel free to [create an issue](https://github.com/dominik-korsa/test-jail/issues/new) requesting a new language)
+
+## CLI Features
+- Run tests on a program and save output files
+- Test a program using input/output files
+- Print diff (jsdiff or line by line comparasion)
+- Single and multiple input modes
 
 ## Usage
 Install using:
