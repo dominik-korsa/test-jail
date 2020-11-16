@@ -6,9 +6,6 @@ import chaiAsPromised from 'chai-as-promised';
 import {
   CodeNotSentError,
   ContainerNotStartedError,
-  isDockerAvailable,
-  isImagePulled,
-  pullContainerImage,
   ResultSuccess,
   Runner, UnknownExtensionError,
 } from '../src';
@@ -38,14 +35,24 @@ describe('Run tests', () => {
   const runner = new Runner();
 
   it('Test Docker available', async () => {
-    expect(await isDockerAvailable()).to.equal(true);
+    expect(await runner.ping()).to.equal(true);
+    const fakeRunner = new Runner({
+      socketPath: 'localhost:1234',
+    });
+    expect(await runner.ping()).to.equal(true);
+    expect(await fakeRunner.ping()).to.equal(false);
   });
 
-  it('Pull docker image', async function () {
+  it('Image management', async function () {
     this.slow(30000);
     this.timeout(300000);
-    await pullContainerImage();
-    expect(await isImagePulled()).to.equal(true);
+    const fakeImageRunner = new Runner(undefined, 'hello-world');
+    await fakeImageRunner.removeImage();
+    expect(await fakeImageRunner.isImagePulled()).to.equal(false);
+    await fakeImageRunner.pullImage();
+    expect(await fakeImageRunner.isImagePulled()).to.equal(true);
+    await fakeImageRunner.removeImage();
+    expect(await fakeImageRunner.isImagePulled()).to.equal(false);
   });
 
   it('Container not started errors', async () => {
@@ -276,4 +283,8 @@ describe('Utils tests', () => {
     expect(b64decode('ewogICJudW1iZXIiOiA1LAogICJ0ZXh0IjogInNtdGgiLAogICJhcnJheSI6IFsxLCAyLCAzXQp9'))
       .to.equal('{\n  "number": 5,\n  "text": "smth",\n  "array": [1, 2, 3]\n}');
   });
+});
+
+after(() => {
+  process.exit();
 });

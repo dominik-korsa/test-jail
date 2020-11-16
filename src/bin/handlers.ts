@@ -11,7 +11,7 @@ import * as Diff from 'diff';
 import eol from 'eol';
 import _ from 'lodash';
 import {
-  Runner, pullContainerImage, isImagePulled, isDockerAvailable, ResultSuccess,
+  Runner, ResultSuccess,
 } from '../index';
 import { globPromise } from '../utils';
 import Test from './test';
@@ -371,8 +371,8 @@ function printResults(results: PrintableResult[], timeLimit: number, lbl: boolea
   console.log(resultsTable.toString());
 }
 
-async function testDockerAvailable() {
-  if (!(await isDockerAvailable())) {
+async function testDockerAvailable(runner: Runner) {
+  if (!(await runner.ping())) {
     const downloadPage = 'https://docs.docker.com/engine/install/';
     console.log(chalk.red.bold('Docker is not available'));
     console.log(chalk`{cyan You can download it from: {blue.underline ${downloadPage}}}`);
@@ -452,12 +452,14 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   const input = path.resolve(process.cwd(), argv.input);
   const output = path.resolve(process.cwd(), argv.output);
 
-  await testDockerAvailable();
+  const runner = new Runner();
+
+  await testDockerAvailable(runner);
   await testCodeExists(code);
 
   // Start pulling before asking to overwrite
-  const imagePulled = await isImagePulled();
-  const pullContainerImagePromise: null | Promise<void> = imagePulled ? null : pullContainerImage();
+  const imagePulled = await runner.isImagePulled();
+  const pullContainerImagePromise: null | Promise<void> = imagePulled ? null : runner.pullImage();
 
   let inputStats: fse.Stats;
   try {
@@ -501,7 +503,6 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   }
 
   const startingSpinner = ora('Starting docker container').start();
-  const runner = new Runner();
   try {
     await runner.start();
     await runner.sendCode(await fse.readFile(code), path.extname(code));
@@ -608,7 +609,9 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
   const input = path.resolve(process.cwd(), argv.input);
   const output = path.resolve(process.cwd(), argv.output);
 
-  await testDockerAvailable();
+  const runner = new Runner();
+
+  await testDockerAvailable(runner);
   await testCodeExists(code);
 
   let inputStats: fse.Stats;
@@ -650,10 +653,10 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     if (!inputStats.isDirectory()) exitWithError('Output is a directory, but input is a file');
   } else if (inputStats.isDirectory()) exitWithError('Output is a file, but input is a directory');
 
-  if (!await isImagePulled()) {
+  if (!await runner.isImagePulled()) {
     try {
       const pullingSpinner = ora('Pulling container').start();
-      await pullContainerImage();
+      await runner.pullImage();
       pullingSpinner.succeed();
     } catch (error) {
       exitWithError(error.message);
@@ -661,7 +664,6 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
   }
 
   const startingSpinner = ora('Starting docker container').start();
-  const runner = new Runner();
   try {
     await runner.start();
     await runner.sendCode(await fse.readFile(code), path.extname(code));

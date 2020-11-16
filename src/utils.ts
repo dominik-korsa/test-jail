@@ -1,10 +1,7 @@
 import util from 'util';
-import cp from 'child_process';
 import glob from 'glob';
 import tar from 'tar-stream';
 import Stream from 'stream';
-
-export const execPromise = util.promisify(cp.exec);
 
 export const globPromise = util.promisify(glob);
 

@@ -1,12 +1,11 @@
 import path from 'path';
-import eol from 'eol';
 import _ from 'lodash';
 import slash from 'slash';
 import readline from 'readline';
 import Docker from 'dockerode';
 import Stream from 'stream';
 import {
-  b64decode, b64encode, execPromise, extractTar, packTar, sleep,
+  b64decode, b64encode, extractTar, packTar, sleep,
 } from './utils';
 import { CodeNotSentError, ContainerNotStartedError, UnknownExtensionError } from './errors';
 
@@ -32,8 +31,6 @@ export type Result = ResultSuccess | ResultRuntimeError | ResultTimeoutError;
 
 export type Language = '.cpp' | '.py';
 
-const containerImageName = 'dominikkorsa/runner:2.1.1';
-
 export class Runner {
   private docker: Docker;
 
@@ -45,14 +42,17 @@ export class Runner {
 
   private extension?: Language;
 
-  public constructor(dockerOptions?: Docker.DockerOptions) {
+  private readonly imageName: string;
+
+  public constructor(dockerOptions?: Docker.DockerOptions, imageName = 'dominikkorsa/runner:2.1.1') {
     this.docker = new Docker(dockerOptions);
+    this.imageName = imageName;
   }
 
   public async start(): Promise<void> {
     if (this.instance !== undefined) return;
     const container = await this.docker.createContainer({
-      Image: containerImageName,
+      Image: this.imageName,
       HostConfig: {
         AutoRemove: true,
       },
@@ -189,25 +189,37 @@ export class Runner {
     } while (info.ExitCode === null);
     if (info.ExitCode !== 0) throw new Error(`Exec command exited with code ${info.ExitCode}`);
   }
-}
 
-export async function isImagePulled(): Promise<boolean> {
-  const { stdout } = await execPromise(`docker images -q ${containerImageName}`);
-  return eol
-    .split(stdout)
-    .filter((line) => line.trim().length > 0)
-    .length > 0;
-}
+  public async ping(): Promise<boolean> {
+    try {
+      await this.docker.ping();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
 
-export async function pullContainerImage(): Promise<void> {
-  await execPromise(`docker pull ${containerImageName}`);
-}
+  public async pullImage(): Promise<void> {
+    if (await this.isImagePulled()) return;
+    const stream: Stream.Readable = await this.docker.pull(this.imageName);
+    await new Promise((resolve) => {
+      stream.once('end', () => resolve());
+      stream.resume();
+    });
+  }
 
-export async function isDockerAvailable(): Promise<boolean> {
-  try {
-    const { stdout } = await execPromise('docker -v');
-    return /Docker version .+, build .+/g.test(stdout);
-  } catch (error) {
-    return false;
+  public async isImagePulled(): Promise<boolean> {
+    try {
+      await this.docker.getImage(this.imageName).get();
+      return true;
+    } catch (error) {
+      if (typeof error.statusCode === 'number' && error.statusCode === 404) return false;
+      throw error;
+    }
+  }
+
+  public async removeImage(): Promise<void> {
+    if (!await this.isImagePulled()) return;
+    await this.docker.getImage(this.imageName).remove();
   }
 }
