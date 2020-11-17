@@ -1,5 +1,4 @@
 {
   "entryPoint": "\"index\"",
-  "plugin": "typedoc-plugin-markdown",
-  "readme": "none"
+  "includeVersion": true
 }

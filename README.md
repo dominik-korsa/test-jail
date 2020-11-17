@@ -1,4 +1,4 @@
-![Test jail logo](.github/images/header.png)
+![Test jail logo](https://github.com/dominik-korsa/test-jail/raw/master/.github/images/header.png)
 
 # Test jail
 ![npm](https://img.shields.io/npm/v/test-jail?style=flat-square)
@@ -7,7 +7,7 @@
 
 Run C++ and Python programs against input files in a Docker container and save the output to files or compare against valid output.
 
-##### [Read the API documentation here](docs/README.md)
+##### [Read the latest API documentation here](https://dominik-korsa.github.io/test-jail)
 
 *This package was previously called **Awesome test runner**.*\
 *Versions up to **v.1.7.x** can be installed from https://www.npmjs.com/package/awesome-test-runner*
@@ -27,7 +27,7 @@ docker -v
 - Tested using Mocha
 - Can run **C++** or **Python** programs (feel free to [create an issue](https://github.com/dominik-korsa/test-jail/issues/new) requesting a new language)
 - Written fully in TypeScript
-- [Documented](docs/README.md) using JSDoc and TypeDoc
+- [Documented](https://dominik-korsa.github.io/test-jail) using JSDoc and TypeDoc
 
 ## CLI Features
 - Run tests on a program and save output files

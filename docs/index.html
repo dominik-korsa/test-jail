@@ -1,0 +1,152 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>test-jail - v2.0.1</title>
+	<meta name="description" content="Documentation for test-jail - v2.0.1">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="assets/js/search.json" data-base=".">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="index.html" class="title">test-jail - v2.0.1</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+							<input type="checkbox" id="tsd-filter-externals" checked />
+							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
+							<input type="checkbox" id="tsd-filter-only-exported" />
+							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+			</ul>
+			<h1>test-jail - v2.0.1</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<div class="tsd-panel tsd-typography">
+				<p><img src="https://github.com/dominik-korsa/test-jail/raw/master/.github/images/header.png" alt="Test jail logo"></p>
+				<a href="#test-jail" id="test-jail" style="color: inherit; text-decoration: none;">
+					<h1>Test jail</h1>
+				</a>
+				<p><img src="https://img.shields.io/npm/v/test-jail?style=flat-square" alt="npm">
+					<img src="https://img.shields.io/codecov/c/github/dominik-korsa/test-jail?style=flat-square&token=QIRETKDW7L" alt="Codecov">
+				<img src="https://img.shields.io/docker/image-size/dominikkorsa/runner?label=docker%20image%20size&style=flat-square" alt="Docker Image Size (latest semver)"></p>
+				<p>Run C++ and Python programs against input files in a Docker container and save the output to files or compare against valid output.</p>
+				<a href="#read-the-latest-api-documentation-here" id="read-the-latest-api-documentation-here" style="color: inherit; text-decoration: none;">
+					<h5><a href="https://dominik-korsa.github.io/test-jail">Read the latest API documentation here</a></h5>
+				</a>
+				<p><em>This package was previously called <strong>Awesome test runner</strong>.<em><br>*Versions up to *</em>v.1.7.x** can be installed from <a href="https://www.npmjs.com/package/awesome-test-runner">https://www.npmjs.com/package/awesome-test-runner</a></em></p>
+				<a href="#requires-docker-to-be-installed-on-your-system" id="requires-docker-to-be-installed-on-your-system" style="color: inherit; text-decoration: none;">
+					<h5>Requires Docker to be installed on your system</h5>
+				</a>
+				<p>You can verify Docker installation using</p>
+				<pre><code class="language-shell">docker -v</code></pre>
+				<a href="#api-features" id="api-features" style="color: inherit; text-decoration: none;">
+					<h2>API Features</h2>
+				</a>
+				<ul>
+					<li>Simple, promise based API</li>
+					<li>Buffer support</li>
+					<li>Runs code in a Docker container, preventing local file and process access</li>
+					<li>Uses Docker API (via dockerode)</li>
+					<li>Integrated test queue</li>
+					<li>Tested using Mocha</li>
+					<li>Can run <strong>C++</strong> or <strong>Python</strong> programs (feel free to <a href="https://github.com/dominik-korsa/test-jail/issues/new">create an issue</a> requesting a new language)</li>
+					<li>Written fully in TypeScript</li>
+					<li><a href="https://dominik-korsa.github.io/test-jail">Documented</a> using JSDoc and TypeDoc</li>
+				</ul>
+				<a href="#cli-features" id="cli-features" style="color: inherit; text-decoration: none;">
+					<h2>CLI Features</h2>
+				</a>
+				<ul>
+					<li>Run tests on a program and save output files</li>
+					<li>Test a program using input/output files</li>
+					<li>Print diff (jsdiff or line by line comparison)</li>
+					<li>Single and multiple input modes</li>
+				</ul>
+				<a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
+					<h2>Usage</h2>
+				</a>
+				<p>Install using:</p>
+				<pre><code class="language-shell">npm i test-jail -g</code></pre>
+				<p>Usage help is available after installation:</p>
+				<pre><code class="language-shell">test-jail --help</code></pre>
+			</div>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class=" tsd-kind-module">
+						<a href="globals.html">&quot;index&quot;</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
+				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
+				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="assets/js/main.js"></script>
+</body>
+</html>
