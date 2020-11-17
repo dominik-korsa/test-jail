@@ -33,12 +33,12 @@ function expectOutputEquals(out1: string, out2: string) {
 
 describe('Run tests', () => {
   const runner = new Runner();
+  const fakeRunner = new Runner({
+    socketPath: 'localhost:1234',
+  });
 
   it('Test Docker available', async () => {
     expect(await runner.ping()).to.equal(true);
-    const fakeRunner = new Runner({
-      socketPath: 'localhost:1234',
-    });
     expect(await runner.ping()).to.equal(true);
     expect(await fakeRunner.ping()).to.equal(false);
   });
@@ -74,6 +74,14 @@ describe('Run tests', () => {
     this.timeout(90000);
     await runner.start();
     expect(runner.isStarted()).to.equal(true);
+  });
+
+  it('Start fake runner', async function () {
+    this.slow(10000);
+    this.timeout(90000);
+    await expect(fakeRunner.start())
+      .to.eventually.be.rejected;
+    expect(fakeRunner.isStarted()).to.equal(false);
   });
 
   it('Start runner again', async function () {
