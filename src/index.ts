@@ -29,10 +29,15 @@ export interface ResultTimeoutError {
 
 export type Result = ResultSuccess | ResultRuntimeError | ResultTimeoutError;
 
-export type Language = '.cpp' | '.py';
+export type Extension = '.cpp' | '.py';
 
+/**
+ * Every runner instance manages a single container.
+ * There can be only one code file at the same time in each container.
+ * There can be multiple runners active simultaneously.
+ */
 export class Runner {
-  public docker: Docker;
+  public readonly docker: Docker;
 
   private instance?: {
     container: Docker.Container;
@@ -40,15 +45,24 @@ export class Runner {
     stream: NodeJS.ReadWriteStream;
   };
 
-  private extension?: Language;
+  private extension?: Extension;
 
   private readonly imageName: string;
 
+  /**
+   * Creates a Runner instance.
+   * @param dockerOptions - Options passed to dockerode constructor.
+   * @param imageName - Container image to use instead of the default one.
+   */
   public constructor(dockerOptions?: Docker.DockerOptions, imageName = 'dominikkorsa/runner:2.1.1') {
     this.docker = new Docker(dockerOptions);
     this.imageName = imageName;
   }
 
+  /**
+   * Starts the docker container.
+   * Does nothing if already started.
+   */
   public async start(): Promise<void> {
     if (this.instance !== undefined) return;
     const container = await this.docker.createContainer({
@@ -103,6 +117,10 @@ export class Runner {
     this.extension = undefined;
   }
 
+  /**
+   * Stops the docker container.
+   * Does nothing if not started.
+   */
   public async stop(): Promise<void> {
     if (this.instance === undefined) return;
     const promise = new Promise((resolve) => this.exitHandlers.push(resolve));
@@ -110,6 +128,14 @@ export class Runner {
     await promise;
   }
 
+  /**
+   * Sends code to be used for testing.
+   * There can only be one code file at the same time.
+   * @param data - Content of the code to send.
+   * @param extension - Extension of the code file, for example: `.cpp`.
+   * Supported languages: {@link Extension}.
+   * @throws {@link UnknownExtensionError}
+   */
   public async sendCode(data: string | Buffer, extension: string): Promise<void> {
     if (this.instance === undefined) throw new ContainerNotStartedError();
     let containerFilename: string;
@@ -126,6 +152,12 @@ export class Runner {
     this.extension = extension;
   }
 
+  /**
+   * Sends input to the container
+   * There can be multiple input files on the docker container
+   * @param data - input to be sent
+   * @returns Path to input file on the container.
+   */
   public async sendInput(data: string | Buffer): Promise<string> {
     if (this.instance === undefined) throw new ContainerNotStartedError();
     const containerDir = '/tmp/inputs';
@@ -141,7 +173,13 @@ export class Runner {
     return containerPath;
   }
 
-  public async test(inputContainerPath: string, timeout: number): Promise<Result> {
+  /**
+   * Adds the input to the run queue, then tests the sent code against an input.
+   * @param inputContainerPath - Path to input file on the container.
+   * Return value of {@link sendInput}.
+   * @param timeout - Time in seconds after which the test will fail.
+   */
+  public async run(inputContainerPath: string, timeout: number): Promise<Result> {
     return new Promise<Result>((resolve, reject) => {
       if (this.instance === undefined) {
         reject(new ContainerNotStartedError());
@@ -164,6 +202,11 @@ export class Runner {
     });
   }
 
+  /**
+   * Used to get back the output of a run.
+   * The returned Buffer can be decoded to a string using `output.decode('utf-8')`
+   * @param outputContainerPath - {@link ResultSuccess.outputContainerPath}
+   */
   public async getOutput(outputContainerPath: string): Promise<Buffer> {
     if (this.instance === undefined) throw new ContainerNotStartedError();
     const pack = await this.instance.container.getArchive({
@@ -172,6 +215,9 @@ export class Runner {
     return extractTar(pack, path.basename(outputContainerPath));
   }
 
+  /**
+   * Returns `true` if the container has been started and `false` otherwise
+   */
   public isStarted(): boolean {
     return this.instance !== undefined;
   }
@@ -191,6 +237,10 @@ export class Runner {
     if (info.ExitCode !== 0) throw new Error(`Exec command exited with code ${info.ExitCode}`);
   }
 
+  /**
+   * Attempts to connect to the Docker daemon.
+   * Returns `true` if successful, `false` otherwise.
+   */
   public async ping(): Promise<boolean> {
     try {
       await this.docker.ping();
@@ -200,6 +250,10 @@ export class Runner {
     }
   }
 
+  /**
+   * Pulls the container image to the machine running Docker.
+   * Returns when completed.
+   */
   public async pullImage(): Promise<void> {
     if (await this.isImagePulled()) return;
     const stream: Stream.Readable = await this.docker.pull(this.imageName);
@@ -209,6 +263,9 @@ export class Runner {
     });
   }
 
+  /**
+   * Checks if container image is pulled.
+   */
   public async isImagePulled(): Promise<boolean> {
     try {
       await this.docker.getImage(this.imageName).get();
@@ -219,6 +276,9 @@ export class Runner {
     }
   }
 
+  /**
+   * Removes the container image from the machine running Docker.
+   */
   public async removeImage(): Promise<void> {
     if (!await this.isImagePulled()) return;
     await this.docker.getImage(this.imageName).remove();

@@ -53,7 +53,7 @@ export default class Test {
     if (!this.inputContainerPath) {
       this.waitTestCompletedFunctions.reject(new Error('Input not sent'));
     } else {
-      this.runner.test(this.inputContainerPath, timeout)
+      this.runner.run(this.inputContainerPath, timeout)
         .then(this.waitTestCompletedFunctions.resolve)
         .catch(this.waitTestCompletedFunctions.reject);
     }

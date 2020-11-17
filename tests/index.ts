@@ -65,7 +65,7 @@ describe('Run tests', () => {
       .to.eventually.be.rejectedWith(ContainerNotStartedError);
     await expect(runner.sendInput('1 2 3\n4 5 6'))
       .to.eventually.be.rejectedWith(ContainerNotStartedError);
-    await expect(runner.test('/tmp/inputs/example.in', 30))
+    await expect(runner.run('/tmp/inputs/example.in', 30))
       .to.eventually.be.rejectedWith(ContainerNotStartedError);
     expect(runner.isStarted()).to.equal(false);
     await expect(runner.stop()).to.be.fulfilled;
@@ -100,7 +100,7 @@ describe('Run tests', () => {
       this.skip();
       return;
     }
-    await expect(runner.test('/tmp/outputs/example.out', 30))
+    await expect(runner.run('/tmp/outputs/example.out', 30))
       .to.eventually.be.rejectedWith(CodeNotSentError);
   });
 
@@ -134,7 +134,7 @@ describe('Run tests', () => {
     }
     this.slow(5000);
     this.timeout(90000);
-    const result = await runner.test(in1ContainerPath, 30) as ResultSuccess;
+    const result = await runner.run(in1ContainerPath, 30) as ResultSuccess;
     expect(result).property('type').to.equal('success');
     const output = await runner.getOutput(result.outputContainerPath);
     expectOutputEquals(output.toString('utf-8'), await readResFile('expected-output/1.out'));
@@ -157,7 +157,7 @@ describe('Run tests', () => {
     }
     this.slow(5000);
     this.timeout(90000);
-    const result = await runner.test(in2ContainerPath, 30) as ResultSuccess;
+    const result = await runner.run(in2ContainerPath, 30) as ResultSuccess;
     expect(result).property('type').to.equal('success');
     const output = await runner.getOutput(result.outputContainerPath);
     expectOutputEquals(output.toString('utf-8'), await readResFile('expected-output/2.out'));
@@ -182,7 +182,7 @@ describe('Run tests', () => {
     this.slow(10000);
     this.timeout(90000);
     await runner.sendCode(await resFileBuffer('code/1-error.cpp'), '.cpp');
-    const result = await runner.test(in1ContainerPath, 30);
+    const result = await runner.run(in1ContainerPath, 30);
     expect(result).property('type').to.equal('runtime-error');
   });
 
@@ -195,7 +195,7 @@ describe('Run tests', () => {
     this.timeout(90000);
     const code = await readResFile('code/1-timeout.cpp');
     await runner.sendCode(code, '.cpp');
-    const result = await runner.test(in1ContainerPath, 5);
+    const result = await runner.run(in1ContainerPath, 5);
     expect(result).property('type').to.equal('timeout');
   });
 
@@ -208,7 +208,7 @@ describe('Run tests', () => {
     this.timeout(90000);
     const code = await readResFile('code/1-valid.py');
     await runner.sendCode(code, '.py');
-    const result = await runner.test(in2ContainerPath, 5);
+    const result = await runner.run(in2ContainerPath, 5);
     expect(result).property('type').to.equal('success');
   });
 
@@ -220,7 +220,7 @@ describe('Run tests', () => {
     this.slow(10000);
     this.timeout(90000);
     await runner.sendCode(await resFileBuffer('code/1-error.py'), '.py');
-    const result = await runner.test(in2ContainerPath, 30);
+    const result = await runner.run(in2ContainerPath, 30);
     expect(result).property('type').to.equal('runtime-error');
   });
 
@@ -232,7 +232,7 @@ describe('Run tests', () => {
     this.slow(20000);
     this.timeout(90000);
     await runner.sendCode(await resFileBuffer('code/1-timeout.py'), '.py');
-    const result = await runner.test(in2ContainerPath, 5);
+    const result = await runner.run(in2ContainerPath, 5);
     expect(result).property('type').to.equal('timeout');
   });
 
@@ -244,8 +244,8 @@ describe('Run tests', () => {
     this.slow(5000);
     this.timeout(90000);
     await runner.sendCode(await resFileBuffer('code/1-valid.cpp'), '.cpp');
-    const test1 = runner.test(in1ContainerPath, 30) as Promise<ResultSuccess>;
-    const test2 = runner.test(in2ContainerPath, 30) as Promise<ResultSuccess>;
+    const test1 = runner.run(in1ContainerPath, 30) as Promise<ResultSuccess>;
+    const test2 = runner.run(in2ContainerPath, 30) as Promise<ResultSuccess>;
     const result1 = await test1;
     const result2 = await test2;
     expect(result1).property('type').to.equal('success');

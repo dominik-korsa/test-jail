@@ -547,7 +547,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
       const inputContainerPath = await runner.sendInput(await fse.readFile(input));
       sendSpinner.succeed();
       const runSpinner = ora('Testing').start();
-      const result = await runner.test(inputContainerPath, argv.time);
+      const result = await runner.run(inputContainerPath, argv.time);
       if (result.type === 'success') {
         await fse.writeFile(output, await runner.getOutput(result.outputContainerPath));
       }
@@ -717,7 +717,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     } else {
       const runSpinner = ora('Testing').start();
       const inputContainerPath = await runner.sendInput(await fse.readFile(input));
-      const result = await runner.test(inputContainerPath, argv.time);
+      const result = await runner.run(inputContainerPath, argv.time);
       const file = path.basename(argv.input);
       if (result.type === 'success') {
         results = [await getTestResult(result, file, output, runner)];
