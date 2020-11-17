@@ -7,6 +7,8 @@
 
 Run C++ and Python programs against input files in a Docker container and save the output to files or compare against valid output.
 
+##### [Read the API documentation here](docs/README.md)
+
 *This package was previously called **Awesome test runner**.*\
 *Versions up to **v.1.7.x** can be installed from https://www.npmjs.com/package/awesome-test-runner*
 
@@ -25,6 +27,7 @@ docker -v
 - Tested using Mocha
 - Can run **C++** or **Python** programs (feel free to [create an issue](https://github.com/dominik-korsa/test-jail/issues/new) requesting a new language)
 - Written fully in TypeScript
+- [Documented](docs/README.md) using JSDoc and TypeDoc
 
 ## CLI Features
 - Run tests on a program and save output files
