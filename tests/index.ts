@@ -284,7 +284,3 @@ describe('Utils tests', () => {
       .to.equal('{\n  "number": 5,\n  "text": "smth",\n  "array": [1, 2, 3]\n}');
   });
 });
-
-after(() => {
-  process.exit();
-});

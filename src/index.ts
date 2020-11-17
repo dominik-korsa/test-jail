@@ -32,7 +32,7 @@ export type Result = ResultSuccess | ResultRuntimeError | ResultTimeoutError;
 export type Language = '.cpp' | '.py';
 
 export class Runner {
-  private docker: Docker;
+  public docker: Docker;
 
   private instance?: {
     container: Docker.Container;
@@ -71,7 +71,7 @@ export class Runner {
       const rl = readline.createInterface({
         input: stdout,
       });
-      stream.on('end', () => this.onEnd());
+      stream.once('end', () => this.onEnd());
       rl.on('line', (line) => this.handleLine(line));
       this.instance = {
         container,
@@ -181,12 +181,13 @@ export class Runner {
     const exec = await this.instance.container.exec({
       Cmd: cmd,
     });
-    await exec.start({});
+    const stream = await exec.start({});
     let info: Docker.ExecInspectInfo;
     do {
       await sleep(500);
       info = await exec.inspect();
     } while (info.ExitCode === null);
+    stream.destroy();
     if (info.ExitCode !== 0) throw new Error(`Exec command exited with code ${info.ExitCode}`);
   }
 

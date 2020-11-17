@@ -564,8 +564,6 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
     await runner.stop();
     exitWithError(error.message);
   }
-
-  process.exit(0);
 }
 
 export interface TestArgs {
@@ -735,6 +733,4 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     await runner.stop();
     exitWithError(error.message);
   }
-
-  process.exit(0);
 }

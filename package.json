@@ -22,8 +22,8 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc -w",
-    "test": "mocha -r ts-node/register tests/**.ts",
-    "test:cov": "nyc --reporter=lcov mocha -r ts-node/register tests/**.ts",
+    "test": "mocha -r ts-node/register tests/**.ts --exit",
+    "test:cov": "nyc --reporter=lcov npm run test",
     "prepublishOnly": "npm run build",
     "release": "release-it --only-version",
     "lint": "eslint src tests -c .eslintrc.json",
