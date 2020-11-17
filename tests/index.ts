@@ -53,6 +53,8 @@ describe('Run tests', () => {
     expect(await fakeImageRunner.isImagePulled()).to.equal(true);
     await fakeImageRunner.removeImage();
     expect(await fakeImageRunner.isImagePulled()).to.equal(false);
+    await runner.pullImage();
+    expect(await runner.isImagePulled()).to.equal(true);
   });
 
   it('Container not started errors', async () => {
