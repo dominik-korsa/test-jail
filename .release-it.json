@@ -1,5 +1,12 @@
 {
   "github": {
     "release": true
+  },
+  "hooks": {
+    "before:init": [
+      "npm run lint",
+      "npm test",
+      "npm run docs"
+    ]
   }
 }
