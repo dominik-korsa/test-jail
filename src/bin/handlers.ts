@@ -452,14 +452,15 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   const input = path.resolve(process.cwd(), argv.input);
   const output = path.resolve(process.cwd(), argv.output);
 
-  const runner = new Runner();
-
-  await testDockerAvailable(runner);
   await testCodeExists(code);
 
-  // Start pulling before asking to overwrite
+  const connectingSpinner = ora('Connecting to Docker daemon').start();
+  const runner = new Runner();
+  await testDockerAvailable(runner);
   const imagePulled = await runner.isImagePulled();
+  // Start pulling before asking to overwrite
   const pullContainerImagePromise: null | Promise<void> = imagePulled ? null : runner.pullImage();
+  connectingSpinner.succeed();
 
   let inputStats: fse.Stats;
   try {
@@ -607,10 +608,13 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
   const input = path.resolve(process.cwd(), argv.input);
   const output = path.resolve(process.cwd(), argv.output);
 
-  const runner = new Runner();
-
-  await testDockerAvailable(runner);
   await testCodeExists(code);
+
+  const connectingSpinner = ora('Connecting to Docker daemon').start();
+  const runner = new Runner();
+  await testDockerAvailable(runner);
+  const imagePulled = await runner.isImagePulled();
+  connectingSpinner.succeed();
 
   let inputStats: fse.Stats;
   let outputStats: fse.Stats;
@@ -651,7 +655,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     if (!inputStats.isDirectory()) exitWithError('Output is a directory, but input is a file');
   } else if (inputStats.isDirectory()) exitWithError('Output is a file, but input is a directory');
 
-  if (!await runner.isImagePulled()) {
+  if (!imagePulled) {
     try {
       const pullingSpinner = ora('Pulling container').start();
       await runner.pullImage();
