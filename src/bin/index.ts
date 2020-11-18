@@ -5,6 +5,7 @@ import readPkgUp from 'read-pkg-up';
 import {
   RunArgs, runHandler, TestArgs, testHandler,
 } from './handlers';
+import ping from './ping';
 
 async function main() {
   const pkgResult = await readPkgUp({
@@ -105,6 +106,12 @@ async function main() {
       },
       testHandler,
     )
+    .command(
+      'ping',
+      'Try accessing the Docker daemon',
+      () => {},
+      () => ping(),
+)
     .demandCommand()
     .help()
     .strict()

@@ -1,5 +1,5 @@
 {
   "entryPoint": "\"index\"",
   "includeVersion": true,
-  "plugin": "typedoc-plugin-jekyll"
+  "plugin": ["typedoc-plugin-jekyll"]
 }
