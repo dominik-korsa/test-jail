@@ -13,10 +13,6 @@ Run C++ and Python programs against input files in a Docker container and save t
 *Versions up to **v.1.7.x** can be installed from https://www.npmjs.com/package/awesome-test-runner*
 
 ##### Requires Docker to be installed on your system
-You can verify Docker installation using
-```shell script
-docker -v
-```
 
 ## API Features
 - Simple, promise based API
@@ -35,12 +31,31 @@ docker -v
 - Print diff (jsdiff or line by line comparison)
 - Single and multiple input modes
 
-## Usage
-Install using:
+## CLI Example usage
+Install globally using:
 ```shell script
 npm i test-jail -g
 ```
 Usage help is available after installation:
 ```shell script
 test-jail --help
+```
+To test if the Docker daemon is running and accessible run:
+```shell script
+test-jail ping
+```
+The program can then run in two modes:
+##### Run
+This mode compiles and runs a program, then passess the specified input files to its standard input.
+If there was no error, standard output is saved on your file system.
+Example usage:
+```shell script
+test-jail run code.py -i input -o output
+```
+Input and output can either be a single file or a directory. All the paths are relative to your current working directory.
+The input files should have an `.in` extension. The output files will have the same name, but with an `.out` extension.
+##### Test
+The test mode works similar to the run mode, but instead of saving the standard output to files, it's compared to the files that already exist (they can be generated using the run command on diffirent code, or just written manually), and the difference is shown.
+```shell script
+test-jail test code.py -i input -o output
 ```
