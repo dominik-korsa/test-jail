@@ -5,7 +5,9 @@
   "hooks": {
     "before:init": [
       "npm run lint",
-      "npm test",
+      "npm test"
+    ],
+    "after:bump": [
       "npm run docs"
     ]
   }
