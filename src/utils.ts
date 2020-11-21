@@ -2,6 +2,7 @@ import util from 'util';
 import glob from 'glob';
 import tar from 'tar-stream';
 import Stream from 'stream';
+import _ from 'lodash';
 
 export const globPromise = util.promisify(glob);
 
@@ -22,15 +23,23 @@ export interface File {
 
 export function packTar(...files: File[]): Stream.Readable {
   const pack = tar.pack();
-  Promise.all(files.map((file) => new Promise((resolve, reject) => {
-      pack.entry({
-        type: 'file',
-        name: file.name,
-      }, file.data, ((err) => {
-        if (err) reject(err);
-        else resolve();
-      }));
-    }))).then(() => pack.finalize());
+  _.initial(files).forEach((file) => {
+    pack.entry({
+      type: 'file',
+      name: file.name,
+    }, file.data);
+  });
+  const lastFile = _.last(files);
+  if (!lastFile) {
+    pack.finalize();
+  } else {
+    pack.entry({
+      type: 'file',
+      name: lastFile.name,
+    }, lastFile.data, () => {
+      pack.finalize();
+    });
+  }
   return pack;
 }
 

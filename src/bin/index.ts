@@ -64,6 +64,11 @@ async function main() {
           type: 'boolean',
           describe: 'Don\'t list successful tests',
         });
+        commandYargs.option('chunk', {
+          type: 'number',
+          describe: 'Number of inputs sent at once',
+          default: 50,
+        });
         commandYargs.conflicts('clear', 'overwrite');
       },
       runHandler,
@@ -112,6 +117,11 @@ async function main() {
           alias: 'hideSuccess',
           type: 'boolean',
           describe: 'Don\'t list successful tests',
+        });
+        commandYargs.option('chunk', {
+          type: 'number',
+          describe: 'Number of inputs sent at once',
+          default: 50,
         });
       },
       testHandler,

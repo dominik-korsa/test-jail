@@ -36,17 +36,13 @@ export default class Test {
     });
   }
 
-  public sendInputFile(): Promise<void> {
-    fse.readFile(this.inputFile)
-      .then((input: Buffer) => this.runner.sendInput(input))
-      .then((inputContainerPath) => {
-        this.inputContainerPath = inputContainerPath;
-        this.inputSentFunctions.resolve();
-      })
-      .catch((error) => {
-        this.inputSentFunctions.reject(error);
-      });
-    return this.waitInputSent;
+  public getInputBuffer(): Promise<Buffer> {
+    return fse.readFile(this.inputFile);
+  }
+
+  public setInputSent(inputContainerPath: string): void {
+    this.inputContainerPath = inputContainerPath;
+    this.inputSentFunctions.resolve();
   }
 
   public test(timeout: number): Promise<Result> {

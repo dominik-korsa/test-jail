@@ -53,18 +53,18 @@ export default class RunProgress {
     this.flush();
   }
 
-  public increaseDone(): void {
-    this.done += 1;
+  public increaseDone(count = 1): void {
+    this.done += count;
     this.update();
   }
 
-  public increaseTested(): void {
-    this.tested += 1;
+  public increaseTested(count = 1): void {
+    this.tested += count;
     this.update();
   }
 
-  public increaseSent(): void {
-    this.sent += 1;
+  public increaseSent(count = 1): void {
+    this.sent += count;
     this.update();
   }
 

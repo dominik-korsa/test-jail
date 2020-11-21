@@ -27,6 +27,7 @@ export interface RunArgs {
   overwrite: boolean;
   clear: boolean;
   hideSuccess: boolean;
+  chunk: number;
 }
 
 export type OutputOverwriteMode = 'clear' | 'overwrite' | 'exit';
@@ -532,10 +533,15 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
           path.resolve(input, file),
           file,
         ));
-      tests.reduce(async (prev, test) => {
+      const chunks = _.chunk(tests, argv.chunk);
+      chunks.reduce(async (prev, chunk: Test[]) => {
         await prev;
-        await test.sendInputFile();
-        progress.increaseSent();
+        const inputs = await Promise.all(chunk.map((test) => test.getInputBuffer()));
+        const containerPaths = await runner.sendInputs(inputs);
+        chunk.forEach((test, index) => {
+          test.setInputSent(containerPaths[index]);
+        });
+        progress.increaseSent(chunk.length);
       }, Promise.resolve());
       tests.reduce(async (prev, test) => {
         await prev;
@@ -590,6 +596,7 @@ export interface TestArgs {
   outputExt: string;
   lineByLine: boolean;
   hideSuccess: boolean;
+  chunk: number;
 }
 
 async function getTestResult(
@@ -694,10 +701,15 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
           path.resolve(input, file),
           file,
         ));
-      tests.reduce(async (prev, test) => {
+      const chunks = _.chunk(tests, argv.chunk);
+      chunks.reduce(async (prev, chunk: Test[]) => {
         await prev;
-        await test.sendInputFile();
-        progress.increaseSent();
+        const inputs = await Promise.all(chunk.map((test) => test.getInputBuffer()));
+        const containerPaths = await runner.sendInputs(inputs);
+        chunk.forEach((test, index) => {
+          test.setInputSent(containerPaths[index]);
+        });
+        progress.increaseSent(chunk.length);
       }, Promise.resolve());
       tests.reduce(async (prev, test) => {
         await prev;
