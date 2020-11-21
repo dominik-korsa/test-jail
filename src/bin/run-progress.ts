@@ -70,7 +70,7 @@ export default class RunProgress {
 
   public finish(): void {
     clearInterval(this.updateIntervalId);
-    this.write(ansi.cursorLeft, ansi.eraseLine);
+    this.write(ansi.cursorLeft, ansi.eraseLines(3));
     this.write(chalk`{green √} Testing\n`);
     this.flush();
   }
