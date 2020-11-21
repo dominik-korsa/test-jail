@@ -59,6 +59,11 @@ async function main() {
           type: 'boolean',
           describe: 'Remove all files in output directory',
         });
+        commandYargs.option('h', {
+          alias: 'hideSuccess',
+          type: 'boolean',
+          describe: 'Don\'t list successful tests',
+        });
         commandYargs.conflicts('clear', 'overwrite');
       },
       runHandler,
@@ -102,6 +107,11 @@ async function main() {
           alias: 'lbl',
           type: 'boolean',
           describe: 'Compare expected and actual output line by line, instead of using jsdiff',
+        });
+        commandYargs.option('h', {
+          alias: 'hideSuccess',
+          type: 'boolean',
+          describe: 'Don\'t list successful tests',
         });
       },
       testHandler,

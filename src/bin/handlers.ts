@@ -26,6 +26,7 @@ export interface RunArgs {
   pattern: string;
   overwrite: boolean;
   clear: boolean;
+  hideSuccess: boolean;
 }
 
 export type OutputOverwriteMode = 'clear' | 'overwrite' | 'exit';
@@ -318,7 +319,12 @@ function printOutput(result: PResultWrongAnswer, lbl: boolean) {
   return diffTable.toString();
 }
 
-function printResults(results: PrintableResult[], timeLimit: number, lbl: boolean) {
+function printResults(
+  results: PrintableResult[],
+  timeLimit: number,
+  lbl: boolean,
+  hideSuccess: boolean,
+) {
   const resultsTable = new Table({
     head: [
       'File',
@@ -330,8 +336,13 @@ function printResults(results: PrintableResult[], timeLimit: number, lbl: boolea
     },
   });
 
+  let successCount = 0;
   results.forEach((result) => {
     if (result.type === 'success' || result.type === 'wrong-answer') {
+      if (hideSuccess && result.type === 'success') {
+        successCount += 1;
+        return;
+      }
       const timeRatio = Math.min(result.time / timeLimit, 0.999);
       const colors = [chalk.gray, chalk.white, chalk.yellow, chalk.red];
       const color = colors[Math.floor(timeRatio * colors.length)];
@@ -368,7 +379,9 @@ function printResults(results: PrintableResult[], timeLimit: number, lbl: boolea
       ]);
     }
   });
-  console.log(resultsTable.toString());
+  if (resultsTable.length > 0) console.log(resultsTable.toString());
+  if (successCount > 1) console.log(chalk.greenBright(`\n${successCount} successful tests`));
+  else if (successCount === 1) console.log(chalk.greenBright('\n1 successful test'));
 }
 
 async function testDockerAvailable(runner: Runner) {
@@ -560,7 +573,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
     const stopSpinner = ora('Killing docker container').start();
     await runner.stop();
     stopSpinner.succeed();
-    printResults(results, argv.time, false);
+    printResults(results, argv.time, false, argv.hideSuccess);
   } catch (error) {
     await runner.stop();
     exitWithError(error.message);
@@ -576,6 +589,7 @@ export interface TestArgs {
   inputPattern: string;
   outputExt: string;
   lineByLine: boolean;
+  hideSuccess: boolean;
 }
 
 async function getTestResult(
@@ -732,7 +746,7 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
     const stopSpinner = ora('Stopping docker container').start();
     await runner.stop();
     stopSpinner.succeed();
-    printResults(results, argv.time, argv.lineByLine);
+    printResults(results, argv.time, argv.lineByLine, argv.hideSuccess);
   } catch (error) {
     await runner.stop();
     exitWithError(error.message);
