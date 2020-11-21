@@ -236,16 +236,34 @@ describe('Run tests', () => {
     expect(result).property('type').to.equal('timeout');
   });
 
+  let in1AltContainerPath: string | undefined;
+  let in2AltContainerPath: string | undefined;
+
+  it('Send multiple inputs', async function () {
+    if (!runner.isStarted()) {
+      this.skip();
+      return;
+    }
+    [in1AltContainerPath, in2AltContainerPath] = await runner.sendInputs([
+      await resFileBuffer('input/1.in'),
+      await resFileBuffer('input/2.in'),
+    ]);
+  });
+
   it('Queue tests', async function () {
-    if (!runner.isStarted() || in1ContainerPath === undefined || in2ContainerPath === undefined) {
+    if (
+      !runner.isStarted()
+      || in1AltContainerPath === undefined
+      || in2AltContainerPath === undefined
+    ) {
       this.skip();
       return;
     }
     this.slow(5000);
     this.timeout(90000);
     await runner.sendCode(await resFileBuffer('code/1-valid.cpp'), '.cpp');
-    const test1 = runner.run(in1ContainerPath, 30) as Promise<ResultSuccess>;
-    const test2 = runner.run(in2ContainerPath, 30) as Promise<ResultSuccess>;
+    const test1 = runner.run(in1AltContainerPath, 30) as Promise<ResultSuccess>;
+    const test2 = runner.run(in2AltContainerPath, 30) as Promise<ResultSuccess>;
     const result1 = await test1;
     const result2 = await test2;
     expect(result1).property('type').to.equal('success');

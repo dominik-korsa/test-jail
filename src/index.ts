@@ -143,8 +143,9 @@ export class Runner {
     else if (extension === '.py') containerFilename = 'code.py';
     else throw new UnknownExtensionError(extension);
     const pack = packTar({
+      data,
       name: containerFilename,
-    }, data);
+    });
     await this.instance.container.putArchive(pack, {
       path: '/tmp',
     });
@@ -153,23 +154,40 @@ export class Runner {
   }
 
   /**
-   * Sends input to the container
+   * Sends multiple inputs to the container
    * There can be multiple input files on the docker container
-   * @param data - input to be sent
-   * @returns Path to input file on the container.
+   * @param inputs - array of inputs data to be sent
+   * @returns Path to input files on the container, in the same order as inputs
    */
-  public async sendInput(data: string | Buffer): Promise<string> {
+  public async sendInputs(inputs: (string | Buffer)[]): Promise<string[]> {
     if (this.instance === undefined) throw new ContainerNotStartedError();
     const containerDir = '/tmp/inputs';
-    const containerFilename = `${Math.floor(Date.now() / 1000)}-${_.random(10000, 99999)}.in`;
-    const containerPath = slash(path.join(containerDir, containerFilename));
-    const pack = packTar({
-        name: containerFilename,
-        type: 'file',
-      }, data);
+    const pairs = inputs.map((data) => {
+      const containerFilename = `${Math.floor(Date.now() / 1000)}-${_.random(10000, 99999)}.in`;
+      const containerPath = slash(path.join(containerDir, containerFilename));
+      return {
+        file: {
+          name: containerFilename,
+          data,
+        },
+        containerPath,
+      };
+    });
+    const pack = packTar(...pairs.map(({ file }) => file));
     await this.instance.container.putArchive(pack, {
       path: containerDir,
     });
+    return pairs.map(({ containerPath }) => containerPath);
+  }
+
+  /**
+   * Sends input to the container
+   * There can be multiple input files on the docker container
+   * @param data - input data to be sent
+   * @returns Path to input file on the container.
+   */
+  public async sendInput(data: string | Buffer): Promise<string> {
+    const [containerPath] = await this.sendInputs([data]);
     return containerPath;
   }
 

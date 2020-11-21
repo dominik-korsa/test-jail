@@ -15,12 +15,22 @@ export function b64decode(encoded: string): string {
   return Buffer.from(encoded, 'base64').toString('utf-8');
 }
 
-export function packTar(headers: tar.Headers, data: string | Buffer): Stream.Readable {
+export interface File {
+  name: string;
+  data: string | Buffer;
+}
+
+export function packTar(...files: File[]): Stream.Readable {
   const pack = tar.pack();
-  pack.entry(headers, data, ((err) => {
-    if (err) throw err;
-    pack.finalize();
-  }));
+  Promise.all(files.map((file) => new Promise((resolve, reject) => {
+      pack.entry({
+        type: 'file',
+        name: file.name,
+      }, file.data, ((err) => {
+        if (err) reject(err);
+        else resolve();
+      }));
+    }))).then(() => pack.finalize());
   return pack;
 }
 
