@@ -16,21 +16,15 @@ import {
 import { globPromise } from '../utils';
 import Test from './test';
 import RunProgress from './run-progress';
-
-export interface RunArgs {
-  url: string;
-  code: string;
-  input: string;
-  output: string;
-  time: number;
-  pattern: string;
-  overwrite: boolean;
-  clear: boolean;
-  hideSuccess: boolean;
-  chunk: number;
-}
-
-export type OutputOverwriteMode = 'clear' | 'overwrite' | 'exit';
+import {
+  Chunk,
+  OutputOverwriteMode,
+  PResultSuccess,
+  PResultWrongAnswer,
+  PrintableResult,
+  RunArgs,
+  TestArgs,
+} from './types';
 
 function exitWithError(text: string) {
   console.error(chalk`{red {bold Error:} ${text}}`);
@@ -40,47 +34,6 @@ function exitWithError(text: string) {
 function printWarning(text: string) {
   console.warn(chalk`{yellowBright {bold Warning:} ${text}}`);
 }
-
-interface PResultSuccess {
-  type: 'success';
-  time: number;
-  file: string;
-}
-
-interface PResultWrongAnswer {
-  type: 'wrong-answer';
-  time: number;
-  file: string;
-  output: string;
-  expectedOutput: string;
-}
-
-interface PResultRuntimeError {
-  type: 'runtime-error';
-  message: string;
-  stderr?: string;
-  file: string;
-}
-
-interface PResultTimeout {
-  type: 'timeout';
-  file: string;
-}
-
-type PrintableResult = PResultSuccess | PResultWrongAnswer | PResultRuntimeError | PResultTimeout;
-
-interface NotChangedChunk {
-  changed: false;
-  output: string[];
-}
-
-interface ChangedChunk {
-  changed: true;
-  expectedOutput: string[];
-  output: string[];
-}
-
-type Chunk = NotChangedChunk | ChangedChunk;
 
 function generateLBLChunks(expectedOutput: string[], output: string[]) {
   const chunks: Chunk[] = [];
@@ -554,7 +507,7 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
         if (result.type === 'success') {
           await test.saveOutput(path.resolve(output, replaceExt(test.inputFileRelative, '.out')));
         }
-        progress.increaseDone();
+        progress.increaseDone(result.type);
         return {
           ...result,
           file: test.inputFileRelative,
@@ -584,19 +537,6 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
     await runner.stop();
     exitWithError(error.message);
   }
-}
-
-export interface TestArgs {
-  url: string;
-  code: string;
-  input: string;
-  output: string;
-  time: number;
-  inputPattern: string;
-  outputExt: string;
-  lineByLine: boolean;
-  hideSuccess: boolean;
-  chunk: number;
 }
 
 async function getTestResult(
@@ -730,10 +670,10 @@ export async function testHandler(argv: yargs.Arguments<TestArgs>): Promise<void
             outputFileResolved,
             runner,
           );
-          progress.increaseDone();
+          progress.increaseDone(pResult.type);
           return pResult;
         }
-        progress.increaseDone();
+        progress.increaseDone(result.type);
         return {
           ...result,
           file: test.inputFileRelative,

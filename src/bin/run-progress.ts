@@ -1,5 +1,6 @@
 import ansi from 'ansi-escapes';
 import chalk from 'chalk';
+import { PrintableResultType } from './types';
 
 export default class RunProgress {
   private buffer = '';
@@ -18,6 +19,8 @@ export default class RunProgress {
 
   private readonly updateIntervalId: NodeJS.Timeout;
 
+  private results: Partial<Record<PrintableResultType, number>> = {};
+
   public constructor(total: number) {
     this.total = total;
     this.write(ansi.cursorHide);
@@ -34,7 +37,7 @@ export default class RunProgress {
   }
 
   public update(clear = true): void {
-    if (clear) this.write(ansi.cursorLeft, ansi.eraseLines(3));
+    if (clear) this.write(ansi.cursorLeft, ansi.eraseLines(4));
     const totalChars = 60;
     const testChars = totalChars / this.total;
     const doneChars = Math.ceil(testChars * this.done);
@@ -50,11 +53,13 @@ export default class RunProgress {
     this.write(` (${Math.floor(this.seconds / 60)} min ${
       (this.seconds % 60).toLocaleString(undefined, { minimumIntegerDigits: 2 })
     } sec)`);
+    this.writeResults();
     this.flush();
   }
 
-  public increaseDone(count = 1): void {
-    this.done += count;
+  public increaseDone(type: PrintableResultType): void {
+    this.results[type] = (this.results[type] ?? 0) + 1;
+    this.done += 1;
     this.update();
   }
 
@@ -70,9 +75,20 @@ export default class RunProgress {
 
   public finish(): void {
     clearInterval(this.updateIntervalId);
-    this.write(ansi.cursorLeft, ansi.eraseLines(3));
+    this.write(ansi.cursorLeft, ansi.eraseLines(4));
     this.write(chalk`{green √} Testing\n`);
     this.flush();
+  }
+
+  private writeResults() {
+    const formatter = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' });
+    const itemsList: string[] = [];
+    if (this.results.success) itemsList.push(chalk.greenBright(`${this.results.success} success`));
+    if (this.results.timeout) itemsList.push(chalk.yellowBright(`${this.results.timeout} timeout`));
+    if (this.results['wrong-answer']) itemsList.push(chalk.redBright(`${this.results['wrong-answer']} wrong answer`));
+    if (this.results['runtime-error']) itemsList.push(chalk.redBright(`${this.results['runtime-error']} runtime error`));
+    const formattedList = formatter.format(itemsList);
+    this.write('\n', formattedList);
   }
 
   private write(...text: string[]) {
