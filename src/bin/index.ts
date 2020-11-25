@@ -3,9 +3,10 @@ import yargs from 'yargs';
 import UpdateNotifier from 'update-notifier';
 import readPkgUp from 'read-pkg-up';
 import {
-  RunArgs, runHandler, TestArgs, testHandler,
+  runHandler, testHandler,
 } from './handlers';
 import ping from './ping';
+import { RunArgs, TestArgs } from './types';
 
 async function main() {
   const pkgResult = await readPkgUp({
