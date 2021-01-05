@@ -13,7 +13,7 @@ import _ from 'lodash';
 import {
   Runner, ResultSuccess,
 } from '../index';
-import { globPromise } from '../utils';
+import { globPromise, lengthsSum } from '../utils';
 import Test from './test';
 import RunProgress from './run-progress';
 import {
@@ -139,7 +139,7 @@ function printOutput(result: PResultWrongAnswer, lbl: boolean) {
   const expectedOutput = eol.split(result.expectedOutput);
   const output = eol.split(result.output);
 
-  if (expectedOutput.length > 500 || output.length > 500) {
+  if (Math.max(lengthsSum(expectedOutput), lengthsSum(output)) > 5000) {
     return 'Output is too long to show';
   }
 

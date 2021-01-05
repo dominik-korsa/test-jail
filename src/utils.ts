@@ -61,3 +61,7 @@ export async function extractTar(pack: NodeJS.ReadableStream, name: string): Pro
   if (chunks === null) throw new Error('Specified file not found in tar archive');
   return Buffer.concat(chunks);
 }
+
+export function lengthsSum(array: string[]): number {
+  return _.sumBy(array, (e) => e.length);
+}
