@@ -38,7 +38,7 @@ function printWarning(text: string) {
 function generateLBLChunks(expectedOutput: string[], output: string[]) {
   const chunks: Chunk[] = [];
   for (let i = 0; i < expectedOutput.length && i < output.length; i += 1) {
-    const lastChunk: Chunk | undefined = chunks[chunks.length - 1];
+    const lastChunk: Chunk | undefined = _.last(chunks);
     const expOutLine = expectedOutput[i];
     const outLine = output[i];
     if (expOutLine === outLine) {
@@ -61,7 +61,7 @@ function generateLBLChunks(expectedOutput: string[], output: string[]) {
       });
     }
   }
-  const lastChunk: Chunk | undefined = chunks[chunks.length - 1];
+  const lastChunk: Chunk | undefined = _.last(chunks);
   const missingExpOutLines = expectedOutput.slice(output.length);
   const missingOutLines = output.slice(expectedOutput.length);
   if (missingExpOutLines.length > 0) {
@@ -96,7 +96,7 @@ function generateDiffChunks(expectedOutput: string[], output: string[]) {
   );
   const chunks: Chunk[] = [];
   diff.forEach((change) => {
-    const lastChunk: Chunk | undefined = chunks[chunks.length - 1];
+    const lastChunk: Chunk | undefined = _.last(chunks);
     if (change.added) {
       if (lastChunk && lastChunk.changed) {
         lastChunk.output.push(...change.value);
@@ -136,10 +136,7 @@ function validLineCell(value: string, expOutLine: number, outLine: number) {
 }
 
 function printOutput(result: PResultWrongAnswer, lbl: boolean) {
-  const expectedOutput = eol.split(result.expectedOutput);
-  const output = eol.split(result.output);
-
-  if (Math.max(lengthsSum(expectedOutput), lengthsSum(output)) > 5000) {
+  if (Math.max(lengthsSum(result.expectedOutput), lengthsSum(result.output)) > 5000) {
     return 'Output is too long to show';
   }
 
@@ -187,13 +184,13 @@ function printOutput(result: PResultWrongAnswer, lbl: boolean) {
   let chunks: Chunk[];
   if (lbl) {
     chunks = generateLBLChunks(
-      expectedOutput,
-      output,
+      result.expectedOutput,
+      result.output,
     );
   } else {
     chunks = generateDiffChunks(
-      expectedOutput,
-      output,
+      result.expectedOutput,
+      result.output,
     );
   }
 
@@ -539,16 +536,22 @@ export async function runHandler(argv: yargs.Arguments<RunArgs>): Promise<void> 
   }
 }
 
+function transformOutput(output: string): string[] {
+  return eol
+    .split(output.trimEnd())
+    .map((line) => line.trimEnd());
+}
+
 async function getTestResult(
   result: ResultSuccess,
   file: string,
   outputFile: string,
   runner: Runner,
 ): Promise<PResultSuccess | PResultWrongAnswer> {
-  const expectedOutput = eol.lf(await fse.readFile(outputFile, 'utf-8')).trimEnd();
+  const expectedOutput = transformOutput(await fse.readFile(outputFile, 'utf-8'));
   const outputBuff = await runner.getOutput(result.outputContainerPath);
-  const output = eol.lf(outputBuff.toString('utf-8')).trimEnd();
-  if (expectedOutput !== output) {
+  const output = transformOutput(outputBuff.toString('utf-8'));
+  if (!_.isEqual(expectedOutput, output)) {
     return {
       type: 'wrong-answer',
       time: result.time,

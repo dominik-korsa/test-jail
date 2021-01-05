@@ -36,8 +36,8 @@ export interface PResultWrongAnswer {
   type: 'wrong-answer';
   time: number;
   file: string;
-  output: string;
-  expectedOutput: string;
+  output: string[];
+  expectedOutput: string[];
 }
 
 export interface PResultRuntimeError {
